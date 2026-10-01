@@ -1,5 +1,7 @@
-# 4KCC_Tool
+# 4KCC
 4KCC是一个可以将各大4K音游平台[Phira,Malody,OSU!]的谱面进行转换的html工具
+
+[作者主页](https://space.bilibili.com/3546837967440731)
 
 # 更新日志
 2026/08/20 beta0.1 完成工具本体开发，目前已支持mcz与pez格式转换
