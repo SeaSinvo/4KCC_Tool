@@ -62,10 +62,38 @@ function fetchText(url,noCache){
 
 function openDB(){
   return new Promise(function(res,rej){
-    var r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=function(){r.result.createObjectStore(STORE);};
-    r.onsuccess=function(){res(r.result);};
-    r.onerror=function(){rej(r.error);};
+    var req=indexedDB.open(DB_NAME);
+    req.onupgradeneeded=function(e){
+      var d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE);
+      if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');
+      if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta');
+    };
+    req.onsuccess=function(){
+      var db=req.result;
+      var ok=db.objectStoreNames.contains(STORE)&&
+             db.objectStoreNames.contains('files')&&
+             db.objectStoreNames.contains('meta');
+      if(ok){res(db);return;}
+      // 缺 store，删库重建
+      db.close();
+      var del=indexedDB.deleteDatabase(DB_NAME);
+      del.onsuccess=function(){
+        var r2=indexedDB.open(DB_NAME,1);
+        r2.onupgradeneeded=function(e){
+          var d=e.target.result;
+          d.createObjectStore(STORE);
+          d.createObjectStore('files');
+          d.createObjectStore('meta');
+        };
+        r2.onsuccess=function(){res(r2.result);};
+        r2.onerror=function(){rej(r2.error);};
+        r2.onblocked=function(){rej(new Error('blocked'));};
+      };
+      del.onerror=function(){rej(del.error);};
+      del.onblocked=function(){rej(new Error('delete blocked'));};
+    };
+    req.onerror=function(){rej(req.error);};
   });
 }
 function idbGet(){
