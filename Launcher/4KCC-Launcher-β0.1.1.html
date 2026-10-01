@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4KCC-Launcher-β0.1</title>
+<style>
+body{font-family:sans-serif;margin:10px;font-size:14px}
+#status,#verr{color:#c00}
+#idbmsg{color:#a60}
+#readme{white-space:pre-wrap;font-family:monospace;font-size:12px;border-top:1px solid #ccc;margin-top:8px;padding-top:8px}
+#iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+a{font-size:12px}
+button{margin-right:4px}
+</style>
+</head>
+<body>
+<h3>4KCC-Launcher-β0.1</h3>
+<div>切换源：
+  <label><input type="radio" name="src" value="github" checked>github</label>
+  <label><input type="radio" name="src" value="jsdelivr">jsdelivr</label>
+  <label><input type="radio" name="src" value="ghproxy">ghproxy</label>
+</div>
+<button id="pull">拉取数据</button>
+<div id="status"></div>
+<div id="ver"></div>
+<div id="verr"></div>
+<div id="idbmsg"></div>
+<div id="readme"></div>
+<div><a href="https://github.com/SeaSinvo/4KCC_Tool" target="_blank">https://github.com/SeaSinvo/4KCC_Tool</a></div>
+<iframe id="iframe"></iframe>
+<script>
+(function(){
+'use strict';
+var DB_NAME='YuYiTool_Launcher',STORE='versions',KEY='current';
+var SOURCES={
+  github:'https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/',
+  jsdelivr:'https://cdn.jsdelivr.net/gh/SeaSinvo/4KCC_Tool@main/',
+  ghproxy:'https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/'
+};
+var cache={name:null,html:null};
+var idbVer=null;
+var readmeAbort=false;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function fetchText(url,noCache){
+  return new Promise(function(res,rej){
+    var c=new AbortController();
+    var t=setTimeout(function(){c.abort();},15000);
+    fetch(url,{signal:c.signal,cache:noCache?'no-store':'default'}).then(function(r){
+      clearTimeout(t);
+      if(!r.ok)throw new Error('HTTP '+r.status+' '+r.statusText);
+      return r.text();
+    }).then(res).catch(function(e){
+      clearTimeout(t);
+      rej(e.name==='AbortError'?new Error('请求超时(15s)'):e);
+    });
+  });
+}
+
+function openDB(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=function(){r.result.createObjectStore(STORE);};
+    r.onsuccess=function(){res(r.result);};
+    r.onerror=function(){rej(r.error);};
+  });
+}
+function idbGet(){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var req=db.transaction(STORE,'readonly').objectStore(STORE).get(KEY);
+      req.onsuccess=function(){res(req.result);};
+      req.onerror=function(){rej(req.error);};
+    });
+  });
+}
+function idbPut(val){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction(STORE,'readwrite');
+      var st=tx.objectStore(STORE);
+      st.delete(KEY);
+      st.put(val,KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(){rej(tx.error);};
+    });
+  });
+}
+function idbDel(){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).delete(KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(){rej(tx.error);};
+    });
+  });
+}
+
+function getSrc(){
+  var r=document.querySelector('input[name=src]:checked');
+  return SOURCES[r?r.value:'github'];
+}
+
+function buildInject(){
+  return '<script>' +
+    'window.__4kcc_hardReload=function(){try{parent.postMessage({t:"4kcc_reload"},"*");}catch(e){}};' +
+    'window.__4kcc_openIDB=function(dbName){return new Promise(function(resolve){' +
+      'var req;' +
+      'try{req=indexedDB.open(dbName,1);}catch(e){console.warn("[4KCC] openIDB 抛异常",e.name,e.message);resolve(null);return;}' +
+      'req.onupgradeneeded=function(e){var db=e.target.result;' +
+        'if(!db.objectStoreNames.contains("files"))db.createObjectStore("files");' +
+        'if(!db.objectStoreNames.contains("meta"))db.createObjectStore("meta");};' +
+      'req.onsuccess=function(){resolve(req.result);};' +
+      'req.onerror=function(){resolve(null);};' +
+      'req.onblocked=function(){resolve(null);};' +
+    '});};' +
+  '<\/script>';
+}
+
+function buildHtml(html){
+  var inject=buildInject();
+  if(/<head[^>]*>/i.test(html)){
+    return html.replace(/<head[^>]*>/i,function(m){return m+inject;});
+  }
+  return inject+html;
+}
+
+function render(){
+  var wrap=$('ver');
+  var title=cache.name||(idbVer&&idbVer.name);
+  if(!title){wrap.innerHTML='';return;}
+  var h='最新版本：'+esc(title)+'<br>';
+  var first=true;
+  if(cache.name){
+    h+='<label><input type="radio" name="ver" value="WEB"'+(first?' checked':'')+'> [WEB] '+esc(cache.name)+'</label><br>';
+    first=false;
+  }
+  if(idbVer){
+    h+='<label><input type="radio" name="ver" value="IDB"'+(first?' checked':'')+'> [IDB] '+esc(idbVer.name)+'</label><br>';
+    first=false;
+  }
+  h+='<button id="launch">启动该版本</button>';
+  h+='<button id="toidb">尝试下载版本到IDB</button>';
+  h+='<button id="delidb">删除IDB版本</button>';
+  wrap.innerHTML=h;
+  $('launch').onclick=launch;
+  $('toidb').onclick=saveToIDB;
+  $('delidb').onclick=delIDB;
+}
+
+function pull(){
+  var st=$('status');
+  st.textContent='加载中...';
+  st.style.color='';
+  $('verr').textContent='';
+  readmeAbort=false;
+  var base=getSrc();
+  fetchText(base+'versions/versions.txt?t='+Date.now()).then(function(txt){
+    var name=txt.trim().split(/\s+/)[0];
+    if(!name)throw new Error('版本文件为空');
+    if(cache.name===name&&cache.html){
+      return {name:name,html:cache.html};
+    }
+    return fetchText(base+'versions/4KCC-'+name+'.html').then(function(html){
+      return {name:name,html:html};
+    });
+  }).then(function(data){
+    cache=data;
+    st.textContent='';
+    render();
+    readReadme(base);
+  }).catch(function(e){
+    st.textContent='错误：'+(e.message||e);
+    st.style.color='#c00';
+  });
+}
+
+function readReadme(base){
+  var el=$('readme');
+  el.textContent='README 加载中...';
+  fetchText(base+'README.md').then(function(txt){
+    if(readmeAbort)return;
+    el.textContent=txt;
+  }).catch(function(e){
+    if(readmeAbort)return;
+    el.textContent='README 读取失败：'+(e.message||e);
+  });
+}
+
+function loadWeb(){
+  var f=$('iframe');
+  f.dataset.mode='web';
+  f.removeAttribute('src');
+  f.srcdoc=buildHtml(cache.html);
+}
+
+function loadIDB(){
+  var f=$('iframe');
+  f.dataset.mode='idb';
+  return idbVer.blob.text().then(function(html){
+    f.removeAttribute('src');
+    f.srcdoc=buildHtml(html);
+  });
+}
+
+function launch(){
+  var r=document.querySelector('input[name=ver]:checked');
+  if(!r)return;
+  $('verr').textContent='';
+  readmeAbort=true;
+  var f=$('iframe');
+  f.style.display='block';
+  if(r.value==='WEB'){
+    if(!cache.html)return;
+    loadWeb();
+  }else{
+    if(!idbVer||!idbVer.blob)return;
+    loadIDB().catch(function(e){
+      f.style.display='none';
+      $('verr').textContent='启动失败：'+(e.message||e);
+    });
+  }
+}
+
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.t==='4kcc_reload'){
+    var f=$('iframe');
+    var mode=f.dataset.mode;
+    if(mode==='web'){
+      if(cache.html)loadWeb();
+    }else{
+      if(idbVer&&idbVer.blob)loadIDB();
+    }
+  }
+});
+
+function saveToIDB(){
+  var r=document.querySelector('input[name=ver]:checked');
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  if(!r||r.value!=='WEB'){
+    verr.textContent='错误：请先选中 [WEB] 版本';
+    return;
+  }
+  if(!cache.html||!cache.name)return;
+  var blob=new Blob([cache.html],{type:'text/html'});
+  idbPut({name:cache.name,blob:blob,savedAt:Date.now()}).then(function(){
+    idbVer={name:cache.name,blob:blob};
+    msg.textContent='注意：IDB 存储不能保证长久有效，仅供参考。';
+    render();
+  }).catch(function(e){
+    verr.textContent='IDB 保存失败：'+(e.message||e);
+  });
+}
+
+function delIDB(){
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  msg.textContent='';
+  if(!idbVer)return;
+  idbDel().then(function(){
+    idbVer=null;
+    render();
+  }).catch(function(e){
+    verr.textContent='IDB 删除失败：'+(e.message||e);
+  });
+}
+
+$('pull').onclick=pull;
+
+(function init(){
+  if(navigator.storage&&navigator.storage.persist){
+    try{navigator.storage.persist().catch(function(){});}catch(e){}
+  }
+  var saved=localStorage.getItem('4kcc_src');
+  if(saved){
+    var r=document.querySelector('input[name=src][value="'+saved+'"]');
+    if(r)r.checked=true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=src]'),function(el){
+    el.addEventListener('change',function(){
+      localStorage.setItem('4kcc_src',el.value);
+    });
+  });
+  idbGet().then(function(v){
+    if(v&&v.name&&v.blob){
+      idbVer=v;
+      render();
+    }else{
+      pull();
+    }
+  }).catch(function(){
+    pull();
+  });
+})();
+
+})();
+</script>
+</body>
+</html>
