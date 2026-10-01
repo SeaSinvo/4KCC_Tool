@@ -1901,7 +1901,7 @@
                     var p3=entries[ei3]; var n3=p3.split('/').pop();
                     if(!n3.endsWith('.json')||n3==='extra.json') continue;
                     var e2=zip.files[p3]; var c2=await e2.async('string');
-                    if(c2.includes('"BPMList"')&&c2.includes('"META"')&&c2.includes('"judgeLineList"')){ chartEntry=e2; chartFileName=n3; break; }
+                    if(c2.includes('"judgeLineList"')){ chartEntry=e2; chartFileName=n3; break; }
                 }
             }
             if(!chartEntry) throw new Error('未找到有效的谱面 JSON 文件');
