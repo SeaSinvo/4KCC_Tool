@@ -43,7 +43,6 @@ var SOURCES={
   github:'https://seasinvo.github.io/4KCC_Tool/',
   ghproxy:'https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/'
 };
-var PAGES_URL='https://seasinvo.github.io/4KCC_Tool/versions/';
 var cache={name:null,html:null};
 var idbVer=null;
 var autoStarted=false;
@@ -285,10 +284,12 @@ function tryAutoStart(){
     if(autoStarted)return;
     autoStarted=true;
     if(auto==='web'){
+      if(!cache.html)return;
       var r=document.querySelector('input[name=ver][value="WEB"]');
       if(r)r.checked=true;
       launch();
     }else if(auto==='idb'){
+      if(!idbVer||!idbVer.blob)return;
       var r2=document.querySelector('input[name=ver][value="IDB"]');
       if(r2)r2.checked=true;
       launch();
@@ -341,13 +342,9 @@ function pull(){
   st.style.color='';
   $('verr').textContent='';
   var base=getSrc();
-  var srcVal=getSrcVal();
   fetchText(base+'versions/versions.txt?t='+Date.now()).then(function(txt){
     var name=txt.trim().split(/\s+/)[0];
     if(!name)throw new Error('版本文件为空');
-    if(srcVal==='github'){
-      return {name:name,html:null};
-    }
     return fetchText(base+'versions/4KCC-'+name+'.html').then(function(html){
       return {name:name,html:html};
     });
@@ -393,16 +390,9 @@ function loadIDB(){
 function launch(){
   var r=document.querySelector('input[name=ver]:checked');
   if(!r)return;
-  var srcVal=getSrcVal();
   $('verr').textContent='';
   var f=$('iframe');
   if(r.value==='WEB'){
-    if(srcVal==='github'){
-      if(!cache.name)return;
-      var url=PAGES_URL+'4KCC-'+cache.name+'.html';
-      window.open(url,'4kcc_launcher');
-      return;
-    }
     if(!cache.html)return;
     f.style.display='block';
     loadWeb();
@@ -440,16 +430,6 @@ window.addEventListener('message',function(e){
   }
 });
 
-function ensureHtml(){
-  if(cache.html)return Promise.resolve(cache.html);
-  if(!cache.name)return Promise.reject(new Error('无版本信息'));
-  var base=getSrc();
-  return fetchText(base+'versions/4KCC-'+cache.name+'.html').then(function(html){
-    cache.html=html;
-    return html;
-  });
-}
-
 function saveToIDB(){
   var r=document.querySelector('input[name=ver]:checked');
   var verr=$('verr'),msg=$('idbmsg');
@@ -458,14 +438,12 @@ function saveToIDB(){
     verr.textContent='错误：请先选中 [WEB] 版本';
     return;
   }
-  if(!cache.name)return;
-  ensureHtml().then(function(){
-    var blob=new Blob([cache.html],{type:'text/html'});
-    return idbPut({name:cache.name,blob:blob,savedAt:Date.now()}).then(function(){
-      idbVer={name:cache.name,blob:blob};
-      msg.textContent='注意：IDB 存储不能保证长久有效，仅供参考。';
-      render();
-    });
+  if(!cache.html||!cache.name)return;
+  var blob=new Blob([cache.html],{type:'text/html'});
+  idbPut({name:cache.name,blob:blob,savedAt:Date.now()}).then(function(){
+    idbVer={name:cache.name,blob:blob};
+    msg.textContent='注意：IDB 存储不能保证长久有效，仅供参考。';
+    render();
   }).catch(function(e){
     verr.textContent='IDB 保存失败：'+(e.message||e);
   });
@@ -475,27 +453,23 @@ function downloadLocal(){
   var verr=$('verr'),msg=$('idbmsg');
   verr.textContent='';
   msg.textContent='';
-  if(!cache.name){
+  if(!cache.html||!cache.name){
     verr.textContent='错误：请先拉取数据';
     return;
   }
-  ensureHtml().then(function(){
-    var safe=String(cache.name).replace(/[^\w.\-]+/g,'_');
-    if(!/^4KCC-/i.test(safe))safe='4KCC-'+safe;
-    var fname=safe+'.html';
-    var blob=new Blob([cache.html],{type:'text/html;charset=utf-8'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url;
-    a.download=fname;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){URL.revokeObjectURL(url);},1000);
-    msg.textContent='已导出 '+fname;
-  }).catch(function(e){
-    verr.textContent='下载失败：'+(e.message||e);
-  });
+  var safe=String(cache.name).replace(/[^\w.\-]+/g,'_');
+  if(!/^4KCC-/i.test(safe))safe='4KCC-'+safe;
+  var fname=safe+'.html';
+  var blob=new Blob([cache.html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download=fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  msg.textContent='已导出 '+fname;
 }
 
 function downloadLauncher(){
@@ -556,7 +530,7 @@ $('dlg').addEventListener('cancel',function(e){e.preventDefault();});
     var auto=localStorage.getItem('4kcc_autostart')||'web';
     idbGet().then(function(v){
       if(v&&v.name&&v.blob)idbVer=v;
-      if(idbVer&&auto!=='web'){
+      if(idbVer&&auto==='idb'){
         render();
         tryAutoStart();
       }else{
