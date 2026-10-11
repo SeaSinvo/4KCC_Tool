@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>4KCC-Launcher-β0.2</title>
+<title>4KCC-Launcher-β0.2.1</title>
+<link id="favicon" rel="icon" href="data:,">
 <style>
 body{font-family:sans-serif;margin:10px;font-size:14px}
 #status,#verr{color:#c00}
@@ -12,10 +13,12 @@ body{font-family:sans-serif;margin:10px;font-size:14px}
 #iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
 a{font-size:12px}
 button{margin-right:4px}
+#oldWrap{display:none;margin-top:6px;margin-bottom:6px;}
+#oldVer{width:140px;}
 </style>
 </head>
 <body>
-<h3>4KCC-Launcher-β0.2</h3>
+<h3>4KCC-Launcher-β0.2.1</h3>
 <div style="font-size:12px;color:#a60;margin-bottom:8px;">请使用 Edge / Chrome 浏览器开启，其他浏览器可能存在 bug</div>
 <div>切换源：
   <label><input type="radio" name="src" value="github" checked>github</label>
@@ -23,6 +26,11 @@ button{margin-right:4px}
 </div>
 <button id="pull">拉取数据</button>
 <button id="readmebtn">查看更新日志</button>
+<button id="oldbtn">浏览以前的版本</button>
+<div id="oldWrap">
+  <input id="oldVer" type="text" placeholder="版本号" inputmode="decimal">
+  <button id="oldGo">跳转</button>
+</div>
 <div id="status"></div>
 <div id="ver"></div>
 <div id="verr"></div>
@@ -33,7 +41,7 @@ button{margin-right:4px}
 <dialog id="dlg">
   <div id="dlgTitle" style="font-weight:bold"></div>
   <div id="dlgBody" style="white-space:pre-wrap;margin-top:6px;"></div>
-  <div style="margin-top:10px;"><button id="dlgOk">确定</button></div>
+  <div style="margin-top:10px;text-align:right;"><button id="dlgOk">确定</button></div>
 </dialog>
 <script>
 (function(){
@@ -49,6 +57,8 @@ var autoStarted=false;
 var readmeCache={base:null,text:null};
 var dlgQueue=[];
 var dlgShowing=false;
+var baseTitle=document.title;
+var baseFaviconHref=null;
 
 function $(id){return document.getElementById(id);}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -249,6 +259,55 @@ function buildHtml(html){
   return inject+html;
 }
 
+function extractTitleAndIcon(html){
+  var out={title:'',icon:''};
+  var tm=String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if(tm)out.title=tm[1].trim();
+  var linkRe=/<link\b[^>]*>/gi,l;
+  while((l=linkRe.exec(html))){
+    var tag=l[0];
+    if(!/rel\s*=\s*["']?[^"'>]*icon[^"'>]*["']?/i.test(tag))continue;
+    var hm=tag.match(/href\s*=\s*["']([^"']*)["']/i);
+    if(hm&&hm[1]){out.icon=hm[1];break;}
+  }
+  if(!out.icon){
+    var mm=String(html).match(/<meta\b[^>]*name\s*=\s*["']?favicon["']?[^>]*>/i);
+    if(mm){
+      var mh=mm[0].match(/content\s*=\s*["']([^"']*)["']/i);
+      if(mh&&mh[1])out.icon=mh[1];
+    }
+  }
+  return out;
+}
+function resolveIconHref(href,baseUrl){
+  if(!href)return '';
+  if(/^data:/i.test(href))return href;
+  try{
+    if(baseUrl)return new URL(href,baseUrl).href;
+    return new URL(href,location.href).href;
+  }catch(e){return href;}
+}
+function setPageIcon(href){
+  var fav=$('favicon');
+  if(!fav){
+    fav=document.createElement('link');
+    fav.id='favicon';
+    fav.rel='icon';
+    document.head.appendChild(fav);
+  }
+  fav.href=href||'data:,';
+}
+function restorePageMeta(){
+  document.title=baseTitle;
+  setPageIcon(baseFaviconHref);
+}
+function applyToolMeta(html,baseUrl){
+  var meta=extractTitleAndIcon(html);
+  if(meta.title)document.title=meta.title;
+  var icon=resolveIconHref(meta.icon,baseUrl);
+  setPageIcon(icon||baseFaviconHref);
+}
+
 function checkLauncherUpdate(){
   var cur=getOwnVersion();
   if(!cur)return Promise.resolve();
@@ -346,7 +405,7 @@ function pull(){
     var name=txt.trim().split(/\s+/)[0];
     if(!name)throw new Error('版本文件为空');
     return fetchText(base+'versions/4KCC-'+name+'.html').then(function(html){
-      return {name:name,html:html};
+      return {name:name,html:html,baseUrl:base+'versions/4KCC-'+name+'.html'};
     });
   }).then(function(data){
     cache=data;
@@ -376,12 +435,14 @@ function loadWeb(){
   var f=$('iframe');
   f.dataset.mode='web';
   f.removeAttribute('src');
+  applyToolMeta(cache.html,cache.baseUrl||getSrc());
   f.srcdoc=buildHtml(cache.html);
 }
 function loadIDB(){
   var f=$('iframe');
   f.dataset.mode='idb';
   return idbVer.blob.text().then(function(html){
+    applyToolMeta(html,'');
     f.removeAttribute('src');
     f.srcdoc=buildHtml(html);
   });
@@ -413,6 +474,7 @@ function exitRender(){
   f.removeAttribute('src');
   f.dataset.mode='';
   $('verr').textContent='';
+  restorePageMeta();
 }
 
 window.addEventListener('message',function(e){
@@ -507,14 +569,36 @@ function delIDB(){
   });
 }
 
+function toggleOldWrap(){
+  var w=$('oldWrap');
+  w.style.display=(w.style.display==='block')?'none':'block';
+  if(w.style.display==='block')$('oldVer').focus();
+}
+function jumpOld(){
+  var verr=$('verr');
+  verr.textContent='';
+  var v=$('oldVer').value.trim();
+  if(!/^\d+(\.\d+)*$/.test(v)){
+    return;
+  }
+  var first=parseInt(v.split('.')[0],10);
+  var prefix=(first>=1)?'V':'\u03b2';
+  var url='https://seasinvo.github.io/4KCC_Tool/versions/4KCC-'+prefix+v;
+  window.open(url,'_blank');
+}
+
 $('pull').onclick=pull;
 $('readmebtn').onclick=loadReadme;
+$('oldbtn').onclick=toggleOldWrap;
+$('oldGo').onclick=jumpOld;
 $('dlg').addEventListener('cancel',function(e){e.preventDefault();});
 
 (function init(){
   if(navigator.storage&&navigator.storage.persist){
     try{navigator.storage.persist().catch(function(){});}catch(e){}
   }
+  var fl=$('favicon');
+  if(fl)baseFaviconHref=fl.getAttribute('href')||'data:,';
   var saved=localStorage.getItem('4kcc_src');
   if(saved){
     var r=document.querySelector('input[name=src][value="'+saved+'"]');
