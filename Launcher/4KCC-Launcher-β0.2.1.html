@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4KCC-Launcher-β0.2.1</title>
+<link id="favicon" rel="icon" href="data:,">
+<style>
+body{font-family:sans-serif;margin:10px;font-size:14px}
+#status,#verr{color:#c00}
+#idbmsg{color:#a60}
+#readme{white-space:pre-wrap;font-family:monospace;font-size:12px;border-top:1px solid #ccc;margin-top:8px;padding-top:8px}
+#iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+a{font-size:12px}
+button{margin-right:4px}
+#oldWrap{display:none;margin-top:6px;margin-bottom:6px;}
+#oldVer{width:140px;}
+</style>
+</head>
+<body>
+<h3>4KCC-Launcher-β0.2.1</h3>
+<div style="font-size:12px;color:#a60;margin-bottom:8px;">请使用 Edge / Chrome 浏览器开启，其他浏览器可能存在 bug</div>
+<div>切换源：
+  <label><input type="radio" name="src" value="github" checked>github</label>
+  <label><input type="radio" name="src" value="ghproxy">ghproxy</label>
+</div>
+<button id="pull">拉取数据</button>
+<button id="readmebtn">查看更新日志</button>
+<button id="oldbtn">浏览以前的版本</button>
+<div id="oldWrap">
+  <input id="oldVer" type="text" placeholder="版本号" inputmode="decimal">
+  <button id="oldGo">跳转</button>
+</div>
+<div id="status"></div>
+<div id="ver"></div>
+<div id="verr"></div>
+<div id="idbmsg"></div>
+<div id="readme"></div>
+<div><a href="https://github.com/SeaSinvo/4KCC_Tool" target="_blank">https://github.com/SeaSinvo/4KCC_Tool</a></div>
+<iframe id="iframe"></iframe>
+<dialog id="dlg">
+  <div id="dlgTitle" style="font-weight:bold"></div>
+  <div id="dlgBody" style="white-space:pre-wrap;margin-top:6px;"></div>
+  <div style="margin-top:10px;text-align:right;"><button id="dlgOk">确定</button></div>
+</dialog>
+<script>
+(function(){
+'use strict';
+var DB_NAME='YuYiTool_Launcher',STORE='versions',KEY='current';
+var SOURCES={
+  github:'https://seasinvo.github.io/4KCC_Tool/',
+  ghproxy:'https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/'
+};
+var cache={name:null,html:null};
+var idbVer=null;
+var autoStarted=false;
+var readmeCache={base:null,text:null};
+var dlgQueue=[];
+var dlgShowing=false;
+var baseTitle=document.title;
+var baseFaviconHref=null;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function parseVer(s){
+  s=String(s||'').replace(/^[^0-9]*/,'');
+  if(!s)return [];
+  return s.split('.').map(function(x){return parseInt(x,10)||0;});
+}
+function cmpVer(a,b){
+  var pa=parseVer(a),pb=parseVer(b);
+  var n=Math.max(pa.length,pb.length);
+  for(var i=0;i<n;i++){
+    var x=pa[i]||0,y=pb[i]||0;
+    if(x>y)return 1;
+    if(x<y)return -1;
+  }
+  return 0;
+}
+function getOwnVersion(){
+  var t=document.title||'';
+  var m=t.match(/[\u03b2\u03d5Vv]\s*(\d+(?:\.\d+)*)/);
+  if(m)return m[1];
+  m=t.match(/(\d+(?:\.\d+)+)/);
+  return m?m[1]:'';
+}
+
+function showDialog(title,body){
+  return new Promise(function(resolve){
+    dlgQueue.push({title:title,body:body,resolve:resolve});
+    if(!dlgShowing)nextDialog();
+  });
+}
+function nextDialog(){
+  var d=dlgQueue.shift();
+  if(!d){dlgShowing=false;return;}
+  dlgShowing=true;
+  var dlg=$('dlg');
+  $('dlgTitle').textContent=d.title;
+  $('dlgBody').textContent=d.body;
+  var ok=$('dlgOk');
+  var clone=ok.cloneNode(true);
+  ok.parentNode.replaceChild(clone,ok);
+  clone.onclick=function(){
+    dlg.close();
+    dlgShowing=false;
+    d.resolve();
+    nextDialog();
+  };
+  if(!dlg.open)dlg.showModal();
+}
+function waitDialogs(fn){
+  if(!dlgShowing&&dlgQueue.length===0){fn();return;}
+  setTimeout(function(){waitDialogs(fn);},80);
+}
+
+function fetchText(url,noCache){
+  return new Promise(function(res,rej){
+    var c=new AbortController();
+    var t=setTimeout(function(){c.abort();},15000);
+    fetch(url,{signal:c.signal,cache:noCache?'no-store':'default'}).then(function(r){
+      clearTimeout(t);
+      if(!r.ok)throw new Error('HTTP '+r.status+' '+r.statusText);
+      return r.text();
+    }).then(res).catch(function(e){
+      clearTimeout(t);
+      rej(e.name==='AbortError'?new Error('请求超时(15s)'):e);
+    });
+  });
+}
+function fetchReadmeText(base){
+  if(readmeCache.base===base&&readmeCache.text){
+    return Promise.resolve(readmeCache.text);
+  }
+  return fetchText(base+'README.md').then(function(txt){
+    readmeCache.base=base;
+    readmeCache.text=txt;
+    return txt;
+  });
+}
+function getLastNonEmptyLine(md){
+  var lines=String(md).split(/\r?\n/);
+  for(var i=lines.length-1;i>=0;i--){
+    if(lines[i].trim())return lines[i].trim();
+  }
+  return '';
+}
+function get4KCCLatestLine(md){
+  var lines=String(md).split(/\r?\n/);
+  var idx=-1;
+  for(var i=0;i<lines.length;i++){
+    if(/^\s*###\s*Launcher\s*$/i.test(lines[i])){idx=i;break;}
+  }
+  if(idx<0)return getLastNonEmptyLine(md);
+  for(var k=idx-1;k>=0;k--){
+    if(lines[k].trim())return lines[k].trim();
+  }
+  return '';
+}
+
+function openDB(){
+  return new Promise(function(res,rej){
+    var req=indexedDB.open(DB_NAME);
+    req.onupgradeneeded=function(e){
+      var d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE);
+      if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');
+      if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta');
+    };
+    req.onsuccess=function(){
+      var db=req.result;
+      var ok=db.objectStoreNames.contains(STORE)&&
+             db.objectStoreNames.contains('files')&&
+             db.objectStoreNames.contains('meta');
+      if(ok){res(db);return;}
+      db.close();
+      var del=indexedDB.deleteDatabase(DB_NAME);
+      del.onsuccess=function(){
+        var r2=indexedDB.open(DB_NAME,1);
+        r2.onupgradeneeded=function(e){
+          var d=e.target.result;
+          d.createObjectStore(STORE);
+          d.createObjectStore('files');
+          d.createObjectStore('meta');
+        };
+        r2.onsuccess=function(){res(r2.result);};
+        r2.onerror=function(){rej(r2.error);};
+        r2.onblocked=function(){rej(new Error('blocked'));};
+      };
+      del.onerror=function(){rej(del.error);};
+      del.onblocked=function(){rej(new Error('delete blocked'));};
+    };
+    req.onerror=function(){rej(req.error);};
+  });
+}
+function idbGet(){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var req=db.transaction(STORE,'readonly').objectStore(STORE).get(KEY);
+      req.onsuccess=function(){res(req.result);};
+      req.onerror=function(){rej(req.error);};
+    });
+  });
+}
+function idbPut(val){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction(STORE,'readwrite');
+      var st=tx.objectStore(STORE);
+      st.delete(KEY);
+      st.put(val,KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(){rej(tx.error);};
+    });
+  });
+}
+function idbDel(){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var tx=db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).delete(KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(){rej(tx.error);};
+    });
+  });
+}
+
+function getSrc(){
+  var r=document.querySelector('input[name=src]:checked');
+  return SOURCES[r?r.value:'github'];
+}
+function getSrcVal(){
+  var r=document.querySelector('input[name=src]:checked');
+  return r?r.value:'github';
+}
+
+function buildInject(){
+  return '<script>' +
+    'window.__4kcc_hardReload=function(){try{parent.postMessage({t:"4kcc_reload"},"*");}catch(e){}};' +
+    'window.__4kcc_exit=function(){try{parent.postMessage({t:"4kcc_exit"},"*");}catch(e){}};' +
+    'window.__4kcc_openIDB=function(dbName){return new Promise(function(resolve){' +
+      'var req;' +
+      'try{req=indexedDB.open(dbName,1);}catch(e){console.warn("[4KCC] openIDB 抛异常",e.name,e.message);resolve(null);return;}' +
+      'req.onupgradeneeded=function(e){var db=e.target.result;' +
+        'if(!db.objectStoreNames.contains("files"))db.createObjectStore("files");' +
+        'if(!db.objectStoreNames.contains("meta"))db.createObjectStore("meta");};' +
+      'req.onsuccess=function(){resolve(req.result);};' +
+      'req.onerror=function(){resolve(null);};' +
+      'req.onblocked=function(){resolve(null);};' +
+    '});};' +
+  '<\/script>';
+}
+function buildHtml(html){
+  var inject=buildInject();
+  if(/<head[^>]*>/i.test(html)){
+    return html.replace(/<head[^>]*>/i,function(m){return m+inject;});
+  }
+  return inject+html;
+}
+
+function extractTitleAndIcon(html){
+  var out={title:'',icon:''};
+  var tm=String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if(tm)out.title=tm[1].trim();
+  var linkRe=/<link\b[^>]*>/gi,l;
+  while((l=linkRe.exec(html))){
+    var tag=l[0];
+    if(!/rel\s*=\s*["']?[^"'>]*icon[^"'>]*["']?/i.test(tag))continue;
+    var hm=tag.match(/href\s*=\s*["']([^"']*)["']/i);
+    if(hm&&hm[1]){out.icon=hm[1];break;}
+  }
+  if(!out.icon){
+    var mm=String(html).match(/<meta\b[^>]*name\s*=\s*["']?favicon["']?[^>]*>/i);
+    if(mm){
+      var mh=mm[0].match(/content\s*=\s*["']([^"']*)["']/i);
+      if(mh&&mh[1])out.icon=mh[1];
+    }
+  }
+  return out;
+}
+function resolveIconHref(href,baseUrl){
+  if(!href)return '';
+  if(/^data:/i.test(href))return href;
+  try{
+    if(baseUrl)return new URL(href,baseUrl).href;
+    return new URL(href,location.href).href;
+  }catch(e){return href;}
+}
+function setPageIcon(href){
+  var fav=$('favicon');
+  if(!fav){
+    fav=document.createElement('link');
+    fav.id='favicon';
+    fav.rel='icon';
+    document.head.appendChild(fav);
+  }
+  fav.href=href||'data:,';
+}
+function restorePageMeta(){
+  document.title=baseTitle;
+  setPageIcon(baseFaviconHref);
+}
+function applyToolMeta(html,baseUrl){
+  var meta=extractTitleAndIcon(html);
+  if(meta.title)document.title=meta.title;
+  var icon=resolveIconHref(meta.icon,baseUrl);
+  setPageIcon(icon||baseFaviconHref);
+}
+
+function checkLauncherUpdate(){
+  var cur=getOwnVersion();
+  if(!cur)return Promise.resolve();
+  var last=localStorage.getItem('4kcc_launcher_version')||'';
+  if(cmpVer(cur,last)<=0)return Promise.resolve();
+  var base=getSrc();
+  return fetchReadmeText(base).then(function(md){
+    var line=getLastNonEmptyLine(md);
+    return showDialog('启动器已更新至'+cur+'版本',line).then(function(){
+      localStorage.setItem('4kcc_launcher_version',cur);
+    });
+  }).catch(function(){});
+}
+
+function checkKernelUpdate(){
+  if(!cache.name)return Promise.resolve();
+  var last=localStorage.getItem('4kcc_last_version')||'';
+  if(cmpVer(cache.name,last)<=0)return Promise.resolve();
+  var base=getSrc();
+  return fetchReadmeText(base).then(function(md){
+    var line=get4KCCLatestLine(md);
+    return showDialog('4KCC已更新至'+cache.name+'版本',line).then(function(){
+      localStorage.setItem('4kcc_last_version',cache.name);
+    });
+  });
+}
+
+function tryAutoStart(){
+  if(autoStarted)return;
+  var auto=localStorage.getItem('4kcc_autostart')||'web';
+  if(auto==='none')return;
+  waitDialogs(function(){
+    if(autoStarted)return;
+    autoStarted=true;
+    if(auto==='web'){
+      if(!cache.html)return;
+      var r=document.querySelector('input[name=ver][value="WEB"]');
+      if(r)r.checked=true;
+      launch();
+    }else if(auto==='idb'){
+      if(!idbVer||!idbVer.blob)return;
+      var r2=document.querySelector('input[name=ver][value="IDB"]');
+      if(r2)r2.checked=true;
+      launch();
+    }
+  });
+}
+
+function render(){
+  var wrap=$('ver');
+  var title=cache.name||(idbVer&&idbVer.name);
+  if(!title){wrap.innerHTML='';return;}
+  var h='最新版本：'+esc(title)+'<br>';
+  var first=true;
+  if(cache.name){
+    h+='<label><input type="radio" name="ver" value="WEB"'+(first?' checked':'')+'> [WEB] '+esc(cache.name)+'</label><br>';
+    first=false;
+  }
+  if(idbVer){
+    h+='<label><input type="radio" name="ver" value="IDB"'+(first?' checked':'')+'> [IDB] '+esc(idbVer.name)+'</label><br>';
+    first=false;
+  }
+  h+='<button id="launch">启动该版本</button>';
+  h+='<button id="toidb">尝试下载版本到IDB</button>';
+  h+='<button id="todisk">下载到本地磁盘</button>';
+  h+='<button id="delidb">删除IDB版本</button>';
+  h+='<button id="dlLauncher">下载启动器</button>';
+  var auto=localStorage.getItem('4kcc_autostart')||'web';
+  h+='<div style="margin-top:8px;border-top:1px solid #ccc;padding-top:8px;">';
+  h+='<div style="font-size:12px;color:#666;">启动时自动：</div>';
+  h+='<label><input type="radio" name="autostart" value="none"'+(auto==='none'?' checked':'')+'> 不自动启动</label><br>';
+  h+='<label><input type="radio" name="autostart" value="web"'+(auto==='web'?' checked':'')+'> 自动启动 WEB 版文件</label><br>';
+  h+='<label><input type="radio" name="autostart" value="idb"'+(auto==='idb'?' checked':'')+'> 自动启动 IDB 版文件</label>';
+  h+='</div>';
+  wrap.innerHTML=h;
+  $('launch').onclick=launch;
+  $('toidb').onclick=saveToIDB;
+  $('todisk').onclick=downloadLocal;
+  $('delidb').onclick=delIDB;
+  $('dlLauncher').onclick=downloadLauncher;
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=autostart]'),function(el){
+    el.addEventListener('change',function(){
+      localStorage.setItem('4kcc_autostart',el.value);
+    });
+  });
+}
+
+function pull(){
+  var st=$('status');
+  st.textContent='加载中...';
+  st.style.color='';
+  $('verr').textContent='';
+  var base=getSrc();
+  fetchText(base+'versions/versions.txt?t='+Date.now()).then(function(txt){
+    var name=txt.trim().split(/\s+/)[0];
+    if(!name)throw new Error('版本文件为空');
+    return fetchText(base+'versions/4KCC-'+name+'.html').then(function(html){
+      return {name:name,html:html,baseUrl:base+'versions/4KCC-'+name+'.html'};
+    });
+  }).then(function(data){
+    cache=data;
+    st.textContent='';
+    render();
+    return checkKernelUpdate();
+  }).then(function(){
+    tryAutoStart();
+  }).catch(function(e){
+    st.textContent='错误：'+(e.message||e);
+    st.style.color='#c00';
+  });
+}
+
+function loadReadme(){
+  var el=$('readme');
+  el.textContent='README 加载中...';
+  var base=getSrc();
+  fetchText(base+'README.md').then(function(txt){
+    el.textContent=txt;
+  }).catch(function(e){
+    el.textContent='README 读取失败：'+(e.message||e);
+  });
+}
+
+function loadWeb(){
+  var f=$('iframe');
+  f.dataset.mode='web';
+  f.removeAttribute('src');
+  applyToolMeta(cache.html,cache.baseUrl||getSrc());
+  f.srcdoc=buildHtml(cache.html);
+}
+function loadIDB(){
+  var f=$('iframe');
+  f.dataset.mode='idb';
+  return idbVer.blob.text().then(function(html){
+    applyToolMeta(html,'');
+    f.removeAttribute('src');
+    f.srcdoc=buildHtml(html);
+  });
+}
+
+function launch(){
+  var r=document.querySelector('input[name=ver]:checked');
+  if(!r)return;
+  $('verr').textContent='';
+  var f=$('iframe');
+  if(r.value==='WEB'){
+    if(!cache.html)return;
+    f.style.display='block';
+    loadWeb();
+  }else{
+    if(!idbVer||!idbVer.blob)return;
+    f.style.display='block';
+    loadIDB().catch(function(e){
+      f.style.display='none';
+      $('verr').textContent='启动失败：'+(e.message||e);
+    });
+  }
+}
+
+function exitRender(){
+  var f=$('iframe');
+  f.style.display='none';
+  f.removeAttribute('srcdoc');
+  f.removeAttribute('src');
+  f.dataset.mode='';
+  $('verr').textContent='';
+  restorePageMeta();
+}
+
+window.addEventListener('message',function(e){
+  if(!e.data)return;
+  if(e.data.t==='4kcc_reload'){
+    var f=$('iframe');
+    var mode=f.dataset.mode;
+    if(mode==='web'){
+      if(cache.html)loadWeb();
+    }else{
+      if(idbVer&&idbVer.blob)loadIDB();
+    }
+  }else if(e.data.t==='4kcc_exit'){
+    exitRender();
+  }
+});
+
+function saveToIDB(){
+  var r=document.querySelector('input[name=ver]:checked');
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  if(!r||r.value!=='WEB'){
+    verr.textContent='错误：请先选中 [WEB] 版本';
+    return;
+  }
+  if(!cache.html||!cache.name)return;
+  var blob=new Blob([cache.html],{type:'text/html'});
+  idbPut({name:cache.name,blob:blob,savedAt:Date.now()}).then(function(){
+    idbVer={name:cache.name,blob:blob};
+    msg.textContent='注意：IDB 存储不能保证长久有效，仅供参考。';
+    render();
+  }).catch(function(e){
+    verr.textContent='IDB 保存失败：'+(e.message||e);
+  });
+}
+
+function downloadLocal(){
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  msg.textContent='';
+  if(!cache.html||!cache.name){
+    verr.textContent='错误：请先拉取数据';
+    return;
+  }
+  var safe=String(cache.name).replace(/[^\w.\-]+/g,'_');
+  if(!/^4KCC-/i.test(safe))safe='4KCC-'+safe;
+  var fname=safe+'.html';
+  var blob=new Blob([cache.html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download=fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  msg.textContent='已导出 '+fname;
+}
+
+function downloadLauncher(){
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  msg.textContent='下载启动器中...';
+  var base=getSrc();
+  fetchText(base+'index.html').then(function(html){
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='index.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    msg.textContent='已下载 index.html';
+  }).catch(function(e){
+    msg.textContent='';
+    verr.textContent='下载启动器失败：'+(e.message||e);
+  });
+}
+
+function delIDB(){
+  var verr=$('verr'),msg=$('idbmsg');
+  verr.textContent='';
+  msg.textContent='';
+  if(!idbVer)return;
+  idbDel().then(function(){
+    idbVer=null;
+    render();
+  }).catch(function(e){
+    verr.textContent='IDB 删除失败：'+(e.message||e);
+  });
+}
+
+function toggleOldWrap(){
+  var w=$('oldWrap');
+  w.style.display=(w.style.display==='block')?'none':'block';
+  if(w.style.display==='block')$('oldVer').focus();
+}
+function jumpOld(){
+  var verr=$('verr');
+  verr.textContent='';
+  var v=$('oldVer').value.trim();
+  if(!/^\d+(\.\d+)*$/.test(v)){
+    return;
+  }
+  var first=parseInt(v.split('.')[0],10);
+  var prefix=(first>=1)?'V':'\u03b2';
+  var url='https://seasinvo.github.io/4KCC_Tool/versions/4KCC-'+prefix+v;
+  window.open(url,'_blank');
+}
+
+$('pull').onclick=pull;
+$('readmebtn').onclick=loadReadme;
+$('oldbtn').onclick=toggleOldWrap;
+$('oldGo').onclick=jumpOld;
+$('dlg').addEventListener('cancel',function(e){e.preventDefault();});
+
+(function init(){
+  if(navigator.storage&&navigator.storage.persist){
+    try{navigator.storage.persist().catch(function(){});}catch(e){}
+  }
+  var fl=$('favicon');
+  if(fl)baseFaviconHref=fl.getAttribute('href')||'data:,';
+  var saved=localStorage.getItem('4kcc_src');
+  if(saved){
+    var r=document.querySelector('input[name=src][value="'+saved+'"]');
+    if(r)r.checked=true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=src]'),function(el){
+    el.addEventListener('change',function(){
+      localStorage.setItem('4kcc_src',el.value);
+      readmeCache={base:null,text:null};
+    });
+  });
+  checkLauncherUpdate().then(function(){
+    var auto=localStorage.getItem('4kcc_autostart')||'web';
+    idbGet().then(function(v){
+      if(v&&v.name&&v.blob)idbVer=v;
+      if(idbVer&&auto==='idb'){
+        render();
+        tryAutoStart();
+      }else{
+        pull();
+      }
+    }).catch(function(){
+      pull();
+    });
+  });
+})();
+
+})();
+</script>
+</body>
+</html>
