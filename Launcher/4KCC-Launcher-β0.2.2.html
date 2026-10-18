@@ -172,7 +172,7 @@ function extractUpdateBody(md,heading,curVer,newVer){
     if(lines[i].trim())picked.push(lines[i].trim());
   }
   if(picked.length>5){
-    picked=picked.slice(0,5);
+    picked=picked.slice(picked.length-5);
     picked.push('更多更新日志请手动查阅');
   }
   return picked.join('\n');
