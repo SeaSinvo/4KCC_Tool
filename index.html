@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>4KCC-Launcher-β0.2.1</title>
-<link id="favicon" rel="icon" href="data:,">
+<title>4KCC-Launcher</title>
+<link id="favicon" rel="icon" href="https://seasinvo.github.io/4KCC_Tool/otherfile/4KCC.png">
 <style>
 body{font-family:sans-serif;margin:10px;font-size:14px}
 #status,#verr{color:#c00}
@@ -18,7 +18,7 @@ button{margin-right:4px}
 </style>
 </head>
 <body>
-<h3>4KCC-Launcher-β0.2.1</h3>
+<h3 id="appTitle">4KCC-Launcher-β0.2.2</h3>
 <div style="font-size:12px;color:#a60;margin-bottom:8px;">请使用 Edge / Chrome 浏览器开启，其他浏览器可能存在 bug</div>
 <div>切换源：
   <label><input type="radio" name="src" value="github" checked>github</label>
@@ -57,8 +57,7 @@ var autoStarted=false;
 var readmeCache={base:null,text:null};
 var dlgQueue=[];
 var dlgShowing=false;
-var baseTitle=document.title;
-var baseFaviconHref=null;
+var baseTitle='4KCC-Launcher';
 
 function $(id){return document.getElementById(id);}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -79,7 +78,8 @@ function cmpVer(a,b){
   return 0;
 }
 function getOwnVersion(){
-  var t=document.title||'';
+  var el=$('appTitle');
+  var t=el?el.textContent:(document.title||'');
   var m=t.match(/[\u03b2\u03d5Vv]\s*(\d+(?:\.\d+)*)/);
   if(m)return m[1];
   m=t.match(/(\d+(?:\.\d+)+)/);
@@ -139,24 +139,43 @@ function fetchReadmeText(base){
     return txt;
   });
 }
-function getLastNonEmptyLine(md){
-  var lines=String(md).split(/\r?\n/);
-  for(var i=lines.length-1;i>=0;i--){
-    if(lines[i].trim())return lines[i].trim();
-  }
-  return '';
-}
-function get4KCCLatestLine(md){
-  var lines=String(md).split(/\r?\n/);
-  var idx=-1;
+
+function findSection(lines,heading){
+  var start=-1;
   for(var i=0;i<lines.length;i++){
-    if(/^\s*###\s*Launcher\s*$/i.test(lines[i])){idx=i;break;}
+    if(lines[i].trim()===heading){start=i;break;}
   }
-  if(idx<0)return getLastNonEmptyLine(md);
-  for(var k=idx-1;k>=0;k--){
-    if(lines[k].trim())return lines[k].trim();
+  if(start<0)return null;
+  var end=lines.length;
+  for(var j=start+1;j<lines.length;j++){
+    if(/^\s*###\s/.test(lines[j])){end=j;break;}
   }
-  return '';
+  return {start:start,end:end};
+}
+function findVerLine(lines,from,to,ver){
+  var needle=ver+' ';
+  for(var i=from;i<to;i++){
+    if(lines[i].indexOf(needle)>=0)return i;
+  }
+  return -1;
+}
+function extractUpdateBody(md,heading,curVer,newVer){
+  var lines=String(md).split(/\r?\n/);
+  var sec=findSection(lines,heading);
+  if(!sec)return '';
+  var newIdx=findVerLine(lines,sec.start+1,sec.end,newVer);
+  if(newIdx<0)return '';
+  var curIdx=curVer?findVerLine(lines,sec.start+1,sec.end,curVer):-1;
+  var from=curIdx>=0?(curIdx+1):(sec.start+1);
+  var picked=[];
+  for(var i=from;i<=newIdx;i++){
+    if(lines[i].trim())picked.push(lines[i].trim());
+  }
+  if(picked.length>5){
+    picked=picked.slice(0,5);
+    picked.push('更多更新日志请手动查阅');
+  }
+  return picked.join('\n');
 }
 
 function openDB(){
@@ -259,53 +278,13 @@ function buildHtml(html){
   return inject+html;
 }
 
-function extractTitleAndIcon(html){
-  var out={title:'',icon:''};
+function extractTitle(html){
   var tm=String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if(tm)out.title=tm[1].trim();
-  var linkRe=/<link\b[^>]*>/gi,l;
-  while((l=linkRe.exec(html))){
-    var tag=l[0];
-    if(!/rel\s*=\s*["']?[^"'>]*icon[^"'>]*["']?/i.test(tag))continue;
-    var hm=tag.match(/href\s*=\s*["']([^"']*)["']/i);
-    if(hm&&hm[1]){out.icon=hm[1];break;}
-  }
-  if(!out.icon){
-    var mm=String(html).match(/<meta\b[^>]*name\s*=\s*["']?favicon["']?[^>]*>/i);
-    if(mm){
-      var mh=mm[0].match(/content\s*=\s*["']([^"']*)["']/i);
-      if(mh&&mh[1])out.icon=mh[1];
-    }
-  }
-  return out;
+  return tm?tm[1].trim():'';
 }
-function resolveIconHref(href,baseUrl){
-  if(!href)return '';
-  if(/^data:/i.test(href))return href;
-  try{
-    if(baseUrl)return new URL(href,baseUrl).href;
-    return new URL(href,location.href).href;
-  }catch(e){return href;}
-}
-function setPageIcon(href){
-  var fav=$('favicon');
-  if(!fav){
-    fav=document.createElement('link');
-    fav.id='favicon';
-    fav.rel='icon';
-    document.head.appendChild(fav);
-  }
-  fav.href=href||'data:,';
-}
-function restorePageMeta(){
-  document.title=baseTitle;
-  setPageIcon(baseFaviconHref);
-}
-function applyToolMeta(html,baseUrl){
-  var meta=extractTitleAndIcon(html);
-  if(meta.title)document.title=meta.title;
-  var icon=resolveIconHref(meta.icon,baseUrl);
-  setPageIcon(icon||baseFaviconHref);
+function applyToolMeta(html){
+  var title=extractTitle(html);
+  if(title)document.title=title;
 }
 
 function checkLauncherUpdate(){
@@ -315,8 +294,8 @@ function checkLauncherUpdate(){
   if(cmpVer(cur,last)<=0)return Promise.resolve();
   var base=getSrc();
   return fetchReadmeText(base).then(function(md){
-    var line=getLastNonEmptyLine(md);
-    return showDialog('启动器已更新至'+cur+'版本',line).then(function(){
+    var body=extractUpdateBody(md,'### Launcher',last,cur);
+    return showDialog('启动器已更新至'+cur+'版本',body).then(function(){
       localStorage.setItem('4kcc_launcher_version',cur);
     });
   }).catch(function(){});
@@ -328,8 +307,8 @@ function checkKernelUpdate(){
   if(cmpVer(cache.name,last)<=0)return Promise.resolve();
   var base=getSrc();
   return fetchReadmeText(base).then(function(md){
-    var line=get4KCCLatestLine(md);
-    return showDialog('4KCC已更新至'+cache.name+'版本',line).then(function(){
+    var body=extractUpdateBody(md,'### 4KCC',last,cache.name);
+    return showDialog('4KCC已更新至'+cache.name+'版本',body).then(function(){
       localStorage.setItem('4kcc_last_version',cache.name);
     });
   });
@@ -435,14 +414,14 @@ function loadWeb(){
   var f=$('iframe');
   f.dataset.mode='web';
   f.removeAttribute('src');
-  applyToolMeta(cache.html,cache.baseUrl||getSrc());
+  applyToolMeta(cache.html);
   f.srcdoc=buildHtml(cache.html);
 }
 function loadIDB(){
   var f=$('iframe');
   f.dataset.mode='idb';
   return idbVer.blob.text().then(function(html){
-    applyToolMeta(html,'');
+    applyToolMeta(html);
     f.removeAttribute('src');
     f.srcdoc=buildHtml(html);
   });
@@ -474,7 +453,7 @@ function exitRender(){
   f.removeAttribute('src');
   f.dataset.mode='';
   $('verr').textContent='';
-  restorePageMeta();
+  document.title=baseTitle;
 }
 
 window.addEventListener('message',function(e){
@@ -597,8 +576,6 @@ $('dlg').addEventListener('cancel',function(e){e.preventDefault();});
   if(navigator.storage&&navigator.storage.persist){
     try{navigator.storage.persist().catch(function(){});}catch(e){}
   }
-  var fl=$('favicon');
-  if(fl)baseFaviconHref=fl.getAttribute('href')||'data:,';
   var saved=localStorage.getItem('4kcc_src');
   if(saved){
     var r=document.querySelector('input[name=src][value="'+saved+'"]');
