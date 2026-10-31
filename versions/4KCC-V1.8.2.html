@@ -1080,7 +1080,6 @@
             });
         };
 
-        // ============ rosu-pp 4.0.1 mania 难度纯 JS 移植（无需 wasm/网络/IDB） ============
         (function(){
             var INDIV_DECAY=0.125, OVER_DECAY=0.3, DECAY_WEIGHT=0.9, SECTION=400, DIFF_MULT=0.018;
             var pow=Math.pow;
@@ -1245,8 +1244,6 @@
                 for(var fi=0; fi<filt.length; fi++){ diff+=filt[fi]*w; w*=DECAY_WEIGHT; }
                 return {stars:diff*DIFF_MULT};
             }
-            // 同步入口：输入 .osu 全文，返回截断 2 位字符串（如 "5.23"），失败返回 null
-            // 同步入口：输入 .osu 全文，返回截断 2 位字符串（如 "5.23"），失败返回 null
             window.__4kcc_calcOsuStar = function(osuContent){
                 try {
                     var r = parseOsu(String(osuContent || ''));
@@ -1256,7 +1253,6 @@
                     return null;
                 }
             };
-            // 直接入口：输入已构造好的 objs 数组和键数，返回截断 2 位字符串
             window.__4kcc_calcOsuStarRaw = function(objs, cs){
                 try {
                     if (!objs || objs.length === 0) return null;
