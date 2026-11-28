@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>4KCC-V1.9.2</title>
+    <title>4KCC-V1.9</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         html,body{height:100%;overflow:hidden}
@@ -376,7 +376,13 @@
             padding:16px 20px;font-size:16px;font-weight:600;color:#ffffff;
             border-bottom:1px solid rgba(255,255,255,0.08);
             flex-shrink:0;
+            display:flex;align-items:center;justify-content:space-between;
         }
+        .artwork-header .preview-close{
+            padding:6px 16px;font-size:12px;font-family:inherit;cursor:pointer;
+            background:#9cd8e5;color:#000;border:none;transition:all 0.2s;
+        }
+        .artwork-header .preview-close:hover{background:#aae6f2;}
         .artwork-grid{
             flex:1;overflow-y:auto;padding:16px;
             display:grid;grid-template-columns:repeat(8,1fr);gap:10px;
@@ -427,7 +433,6 @@
             padding:40px 0;font-size:14px;
         }
 
-        /* 预览覆盖层：全屏、隐藏标题栏、竖屏自动旋转 90° */
         #previewOverlay{padding:0;}
         #previewOverlay .artwork-panel{
             width:100vw;height:100vh;max-width:100vw;max-height:100vh;
@@ -460,7 +465,6 @@
   .artwork-footer{padding:12px 14px;}
 }
         @media(max-width:500px){
-            .split-row{grid-template-columns:1fr;}
             .main-window{padding:14px;border-radius:0}
             .brand-home .brand-title{font-size:20px}
             .page-header h2{font-size:17px}
@@ -589,7 +593,7 @@
                     <div class="page-body">
                         <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
                             <div class="drop-zone" id="dropZone">
-                                <input type="file" id="fileInput" accept="application/octet-stream,.mcz,.pez,.osz,.zip,.4kz" />
+                                <input type="file" id="fileInput" accept=".mcz,.pez,.osz,.zip,.4kz" />
                                 <div class="primary-text">拖拽到此处，或 <strong>点击浏览</strong></div>
                                 <div class="secondary-text">
                                     <span class="ext-badge">.mcz</span>
@@ -722,7 +726,7 @@
                         <button class="btn btn-success" id="doneRefreshBtn" style="margin-top:8px;">确认下载完成 · 刷新</button>
                         <button class="btn btn-primary" id="addBgBtn" style="margin-top:4px;">将图片加入背景板</button>
                         <div class="drop-zone done-drop-zone" id="doneDropZone">
-                            <input type="file" id="doneFileInput" accept="application/octet-stream,.mcz,.pez,.osz,.zip,.4kz" />
+                            <input type="file" id="doneFileInput" accept=".mcz,.pez,.osz,.zip,.4kz" />
                             <div class="primary-text">再转一个</div>
                             <div class="secondary-text">
                                 <span class="ext-badge">.mcz</span>
@@ -794,7 +798,10 @@
 
     <div class="artwork-overlay" id="previewOverlay">
         <div class="artwork-panel">
-            <div class="artwork-header"><span>谱面预览</span></div>
+            <div class="artwork-header">
+                <span>谱面预览</span>
+                <button class="preview-close" id="previewCloseBtn">关闭</button>
+            </div>
             <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"></iframe>
         </div>
     </div>
@@ -1504,6 +1511,7 @@
         var previewChartBtn = document.getElementById('previewChartBtn');
         var previewOverlay = document.getElementById('previewOverlay');
         var previewFrame = document.getElementById('previewFrame');
+        var previewCloseBtn = document.getElementById('previewCloseBtn');
 
         var settingsEntry = document.getElementById('settingsEntry');
         var knownIssuesEntry = document.getElementById('knownIssuesEntry');
@@ -1542,9 +1550,11 @@
         var GET_URL = 'https://abacus.jasoncameron.dev/get/seasinvo-github-io/chart-convert-time';
         var PREVIEW_BASE = 'https://seasinvo.github.io/4KCC_Tool/chartview/';
 
-        /* 预览状态 */
+        /* ---------- 预览状态 ---------- */
         var previewPendingData = null;
         var previewFrameReady = false;
+        var previewIframeActive = false;
+        var previewTempNet = false;
 
         function osuXOf(K, i){
             if (K <= 0) K = 4;
@@ -1555,7 +1565,6 @@
             return (i / (K - 1) * 2 - 1) * N;
         }
 
-        /* BGM 数据 */
         var BGM_PACKED = `418,67,41
 430,70,50
 208,67,52
@@ -1903,7 +1912,6 @@
             }
         };
 
-        /* ============ 下拉框 ============ */
         function createDropdown(container, options, title){
             container.classList.add('dropdown');
             container.innerHTML = '';
@@ -4234,8 +4242,10 @@
             previewFrameReady = false;
         }
 
-        function handlePreviewSave(d){
+        async function handlePreviewSave(d){
+            var hadOpen = previewOverlay.classList.contains('active');
             closePreview();
+            if (!hadOpen) return;
             if (!d.tmpF || !Array.isArray(d.tmpT) || d.tmpT.length === 0) return;
             try {
                 var meta = parseTmpFForPreview(d.tmpF);
@@ -4292,9 +4302,9 @@
                 try {
                     var resp = await fetch(PREVIEW_BASE + 'versions.txt', { cache: 'no-store' });
                     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                    var ver = (await resp.text()).trim().split(/\r?\n/)[0].trim();
-                    if (!ver) throw new Error('版本号为空');
-                    var url = PREVIEW_BASE + 'chartview-' + ver + '.html';
+                        var ver = (await resp.text()).trim().split(/\r?\n/)[0].trim();
+                        if (!ver) throw new Error('版本号为空');
+                        var url = PREVIEW_BASE + 'chartview-' + ver + '.html';
 
                     var d0 = parsedDataList[0];
                     var audioCopy = d0.audioData ? (d0.audioData.slice ? d0.audioData.slice(0) : d0.audioData) : null;
@@ -4318,6 +4328,10 @@
             });
         });
 
+        previewCloseBtn.addEventListener('click', function(){
+            closePreview();
+        });
+
         window.addEventListener('message', function(e){
             var d = e.data;
             if (!d || !d.type) return;
@@ -4325,18 +4339,30 @@
                 if (!previewOverlay.classList.contains('active')) return;
                 previewFrameReady = true;
                 if (previewPendingData) {
+                    var payload = {
+                        type: '4kcc-chartview',
+                        tmpF: previewPendingData.tmpF,
+                        tmpT: previewPendingData.tmpT,
+                        audioName: previewPendingData.audioName,
+                        imageName: previewPendingData.imageName,
+                        audio: previewPendingData.audio,
+                        image: previewPendingData.image
+                    };
                     try {
+                        var transfers = [];
+                        if (payload.audio) transfers.push(payload.audio);
+                        if (payload.image) transfers.push(payload.image);
+                        previewFrame.contentWindow.postMessage(payload, '*', transfers);
+                    } catch(err) {
                         previewFrame.contentWindow.postMessage({
                             type: '4kcc-chartview',
                             tmpF: previewPendingData.tmpF,
                             tmpT: previewPendingData.tmpT,
                             audioName: previewPendingData.audioName,
                             imageName: previewPendingData.imageName,
-                            audio: previewPendingData.audio,
-                            image: previewPendingData.image
+                            audio: null,
+                            image: null
                         }, '*');
-                    } catch(err) {
-                        window.__4kcc_showError('预览数据发送失败：' + (err.message || '未知错误'));
                     }
                 }
             } else if (d.type === '4kcc-chartview-close') {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>4KCC-V1.9</title>
+    <title>4KCC-V1.7.1</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         html,body{height:100%;overflow:hidden}
@@ -83,10 +83,6 @@
             font-size:24px;font-weight:600;letter-spacing:1.5px;color:#ffffff;
             background:none;-webkit-text-fill-color:#ffffff;
         }
-        .brand-home .brand-sub{
-            font-size:12px;color:#7a8a9a;margin-top:4px;
-            letter-spacing:0.3px;font-weight:400;
-        }
         .page-header{
             display:flex;align-items:center;justify-content:space-between;
             margin-bottom:16px;flex-shrink:0;
@@ -146,7 +142,6 @@
         .form-group input::placeholder{color:#6a7a8a;}
         .form-group select option{background:#1a1e2e;color:#ffffff;}
         .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-        .split-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
 
         .dropdown{
             position:relative;display:flex;align-items:center;
@@ -160,7 +155,20 @@
         .dropdown .dd-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .dropdown .dd-arrow{color:#7A8A9A;font-size:10px;transition:transform 0.2s;margin-left:8px;}
         .dropdown.open .dd-arrow{transform:rotate(180deg);color:#9cd8e5;}
+        .dropdown .dd-panel{
+            position:absolute;top:calc(100% + 2px);left:0;right:auto;width:100%;
+            background:#1a1e2e;border:1px solid #9cd8e5;
+            z-index:250;display:none;max-height:240px;overflow-y:auto;
+        }
+        .dropdown.open .dd-panel{display:block;}
+        .dropdown .dd-option{
+            padding:7px 14px;font-size:14px;color:#ffffff;
+            cursor:pointer;transition:background 0.15s,color 0.15s;
+        }
+        .dropdown .dd-option:hover{background:rgba(156,216,229,0.15);color:#9cd8e5;}
+        .dropdown .dd-option.selected{background:rgba(156,216,229,0.2);color:#9cd8e5;}
 
+        /* 下拉打开时让祖先 overflow:visible，面板不被裁剪 */
         body.dd-open .main-window,
         body.dd-open .pages-wrapper,
         body.dd-open .page,
@@ -219,10 +227,6 @@
         @keyframes spin{ to{transform:rotate(360deg)} }
         .center-content .title-text{font-size:20px;font-weight:600;color:#ffffff;}
         .center-content .desc-text{font-size:15px;color:#a0a8b0;max-width:400px;}
-
-        #pageDone .center-content{justify-content:flex-start;padding-top:5%;padding-bottom:16px;}
-        .done-drop-zone{flex:0 0 50%;min-height:50%;margin-top:auto;width:80%;max-width:none;padding:20px 16px 16px;}
-        .done-drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 
         .msg-overlay{
             position:absolute;inset:0;
@@ -331,8 +335,7 @@
         .chart-item input[type="checkbox"]{
             width:16px;height:16px;accent-color:#9cd8e5;cursor:pointer;flex-shrink:0;
         }
-        .chart-item .chart-label{font-size:14px;color:#ffffff;flex:1;}
-        .chart-item .chart-keynum{font-size:11px;color:#9cd8e5;flex-shrink:0;}
+        .chart-item span{font-size:14px;color:#ffffff;}
 
         .settings-list{display:flex;flex-direction:column;gap:14px;}
         .settings-row{
@@ -356,6 +359,7 @@
         }
         .settings-action.danger-action:hover{background:#e07a7a;}
 
+        /* 管理曲绘覆盖层 */
         .artwork-overlay{
             position:fixed;inset:0;z-index:300;
             background:rgba(0,0,0,0.92);
@@ -376,13 +380,7 @@
             padding:16px 20px;font-size:16px;font-weight:600;color:#ffffff;
             border-bottom:1px solid rgba(255,255,255,0.08);
             flex-shrink:0;
-            display:flex;align-items:center;justify-content:space-between;
         }
-        .artwork-header .preview-close{
-            padding:6px 16px;font-size:12px;font-family:inherit;cursor:pointer;
-            background:#9cd8e5;color:#000;border:none;transition:all 0.2s;
-        }
-        .artwork-header .preview-close:hover{background:#aae6f2;}
         .artwork-grid{
             flex:1;overflow-y:auto;padding:16px;
             display:grid;grid-template-columns:repeat(8,1fr);gap:10px;
@@ -431,26 +429,6 @@
         .artwork-empty{
             grid-column:1/-1;text-align:center;color:#7a8a9a;
             padding:40px 0;font-size:14px;
-        }
-
-        #previewOverlay{padding:0;}
-        #previewOverlay .artwork-panel{
-            width:100vw;height:100vh;max-width:100vw;max-height:100vh;
-            border:0;box-shadow:none;position:relative;overflow:hidden;
-        }
-        #previewOverlay .artwork-header{display:none;}
-        #previewFrame{
-            position:absolute;left:50%;top:50%;
-            width:100vw;height:100vh;
-            transform:translate(-50%,-50%);
-            transform-origin:center center;
-            border:0;background:#000;
-        }
-        @media (orientation:portrait){
-            #previewFrame{
-                width:100vh;height:100vw;
-                transform:translate(-50%,-50%) rotate(90deg);
-            }
         }
 
 @media(max-width:750px){
@@ -502,39 +480,6 @@
         @media(max-width:750px){
             .top-refresh-btn{top:8px;left:8px;width:32px;height:32px;}
         }
-        .dd-modal-overlay{
-            position:fixed;inset:0;z-index:480;
-            background:rgba(0,0,0,0.72);
-            backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-            display:none;align-items:center;justify-content:center;
-            padding:40px;
-        }
-        .dd-modal-overlay.active{display:flex;}
-        .dd-modal-dialog{
-            width:320px;max-width:100%;max-height:70vh;
-            background:rgba(38,46,62,0.97);
-            border:1px solid rgba(255,255,255,0.12);
-            box-shadow:0 20px 60px rgba(0,0,0,0.8);
-            display:flex;flex-direction:column;
-            animation:msgIn 0.18s ease-out;
-        }
-        .dd-modal-header{
-            padding:14px 18px;font-size:14px;font-weight:600;color:#ffffff;
-            border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;
-        }
-        .dd-modal-list{overflow-y:auto;padding:6px 0;}
-        .dd-modal-list::-webkit-scrollbar{width:4px;}
-        .dd-modal-list::-webkit-scrollbar-track{background:transparent;}
-        .dd-modal-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);}
-        .dd-modal-option{
-            padding:11px 18px;font-size:14px;color:#ffffff;cursor:pointer;
-            transition:background 0.15s,color 0.15s;
-        }
-        .dd-modal-option:hover{background:rgba(156,216,229,0.15);color:#9cd8e5;}
-        .dd-modal-option.selected{background:rgba(156,216,229,0.2);color:#9cd8e5;}
-        @media(max-width:750px){
-            .dd-modal-overlay{padding:16px;}
-        }
     </style>
 </head>
 <body>
@@ -553,7 +498,7 @@
         <div class="quick-window" id="quickWindow">
             <div class="label">快速跳转</div>
             <a href="https://swordalt.github.io/phigros-chart-downloader/" target="_blank" class="quick-link" rel="noopener noreferrer">
-                <img data-src="https://rhythmarchive.github.io/game-icons/phigros.webp" alt="Phigros" class="link-icon" onerror="this.style.display='none'">
+                <img data-src="https://static.wikia.nocookie.net/phigros/images/4/4a/Site-favicon.ico" alt="Phigros" class="link-icon" onerror="this.style.display='none'">
                 <span>浏览 Phigros 谱面</span>
                 <span class="arrow">➤</span>
             </a>
@@ -582,10 +527,7 @@
         </div>
 
         <div class="main-window" id="mainWindow">
-            <div class="brand-home">
-                <div class="brand-title">4K Chart Converter</div>
-                <div class="brand-sub" id="convertCountLine">已转换谱面次数：—</div>
-            </div>
+            <div class="brand-home"><div class="brand-title">4K Chart Converter</div></div>
             <div class="pages-wrapper" id="pagesWrapper">
 
                 <div class="page active" id="pageImport">
@@ -630,12 +572,12 @@
                     <div class="page-header"><h2>选择谱面</h2></div>
                     <div class="page-body">
                         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:20px;">
-                            <div style="text-align:center;color:#a0a8b0;font-size:15px;">检测到多个谱面，请选择要转换的版本：</div>
+                            <div style="text-align:center;color:#a0a8b0;font-size:15px;">检测到多个 4K 谱面，请选择要转换的版本：</div>
                             <div class="chart-list" id="chartList"></div>
                         </div>
                     </div>
                     <div class="page-footer">
-                        <button class="btn btn-primary" id="multiToggleBtn">查看全部定轨谱面</button>
+                        <button class="btn btn-primary" id="multiToggleBtn">开启多选</button>
                         <button class="btn btn-primary" id="chartSelectConfirm">确认并继续 →</button>
                     </div>
                 </div>
@@ -699,16 +641,7 @@
                             <div class="form-group"><label>作曲 (Composer)</label><input type="text" id="editComposer" placeholder="作曲者" /></div>
                             <div class="form-group"><label>谱师 (Charter)</label><input type="text" id="editCharter" placeholder="谱面作者" /></div>
                         </div>
-                        <div class="form-group">
-                            <label>画师 (Illustrator)</label>
-                            <div class="split-row">
-                                <div>
-                                    <input type="text" id="editIllustrator" placeholder="画师" />
-                                    <div style="font-size:12px;color:#6a7a8a;margin-top:2px;">默认 UK (Unknown)</div>
-                                </div>
-                                <button class="btn btn-primary" id="previewChartBtn" style="padding:10px 14px;font-size:14px;">预览谱面</button>
-                            </div>
-                        </div>
+                        <div class="form-group"><label>画师 (Illustrator)</label><input type="text" id="editIllustrator" placeholder="画师" /><div style="font-size:12px;color:#6a7a8a;margin-top:2px;">默认 UK (Unknown)</div></div>
                         <div class="form-group">
                             <label>输出格式</label>
                             <div id="editFormat"></div>
@@ -725,17 +658,6 @@
                         <div class="desc-text" id="doneDesc">文件已开始下载，请确认保存后点击下方按钮刷新。</div>
                         <button class="btn btn-success" id="doneRefreshBtn" style="margin-top:8px;">确认下载完成 · 刷新</button>
                         <button class="btn btn-primary" id="addBgBtn" style="margin-top:4px;">将图片加入背景板</button>
-                        <div class="drop-zone done-drop-zone" id="doneDropZone">
-                            <input type="file" id="doneFileInput" accept=".mcz,.pez,.osz,.zip,.4kz" />
-                            <div class="primary-text">再转一个</div>
-                            <div class="secondary-text">
-                                <span class="ext-badge">.mcz</span>
-                                <span class="ext-badge">.pez</span>
-                                <span class="ext-badge">.osz</span>
-                                <span class="ext-badge">.zip</span>
-                                <span class="ext-badge">.4kz</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -744,16 +666,16 @@
                     <div class="page-body">
                         <div class="settings-list">
                             <label class="settings-row">
+                                <input type="checkbox" id="settingIdbLib" />
+                                <span>从 IDB 中获取支持库</span>
+                            </label>
+                            <label class="settings-row">
                                 <input type="checkbox" id="settingIdbMainBanner" />
                                 <span>从 IDB 中获取主界面轮播图像</span>
                             </label>
                             <label class="settings-row">
                                 <input type="checkbox" id="settingNoNetwork" />
                                 <span>禁止联网</span>
-                            </label>
-                            <label class="settings-row">
-                                <input type="checkbox" id="settingUseOsuStar" />
-                                <span>使用 OSU mania 星数作为默认难度</span>
                             </label>
                             <label class="settings-row">
                                 <input type="checkbox" id="settingAutoDim" />
@@ -773,15 +695,16 @@
                         <button class="btn btn-primary" id="settingsConfirmBtn">确认</button>
                     </div>
                 </div>
+
+                <div class="msg-overlay" id="msgOverlay">
+                    <div class="msg-dialog">
+                        <div class="msg-text" id="msgText"></div>
+                        <div class="msg-actions" id="msgActions"></div>
+                    </div>
+                </div>
+
             </div>
             <div class="footer-credit" id="footerCredit" title="前往作者主页">本工具使用DeepSeek编写 · 作者:b站SeaSinvo · 严禁进行低创创作</div>
-        </div>
-    </div>
-
-    <div class="msg-overlay" id="msgOverlay">
-        <div class="msg-dialog">
-            <div class="msg-text" id="msgText"></div>
-            <div class="msg-actions" id="msgActions"></div>
         </div>
     </div>
 
@@ -793,16 +716,6 @@
                 <button class="artwork-clear" id="artworkClearAll">清空全部曲绘</button>
                 <button class="artwork-back" id="artworkBack">返回</button>
             </div>
-        </div>
-    </div>
-
-    <div class="artwork-overlay" id="previewOverlay">
-        <div class="artwork-panel">
-            <div class="artwork-header">
-                <span>谱面预览</span>
-                <button class="preview-close" id="previewCloseBtn">关闭</button>
-            </div>
-            <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"></iframe>
         </div>
     </div>
 
@@ -923,10 +836,10 @@
             });
         };
 
-        var DEFAULT_SETTINGS = { idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true, useOsuStarAsLevel: true };
+        var DEFAULT_SETTINGS = { idbLib: false, idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true };
 
         window.__4kcc_settings = {
-            values: { idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true, useOsuStarAsLevel: true },
+            values: { idbLib: false, idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true },
             loaded: false,
             dirty: false
         };
@@ -952,12 +865,12 @@
 
                         var cc = obj['4kcc'] || {};
                         resolve({
+                            idbLib: cc.idbLib !== undefined ? !!cc.idbLib : DEFAULT_SETTINGS.idbLib,
                             idbMainBanner: cc.idbMainBanner !== undefined ? !!cc.idbMainBanner : DEFAULT_SETTINGS.idbMainBanner,
                             suggestionConfirmed: cc.suggestionConfirmed !== undefined ? !!cc.suggestionConfirmed : DEFAULT_SETTINGS.suggestionConfirmed,
                             noNetwork: cc.noNetwork !== undefined ? !!cc.noNetwork : DEFAULT_SETTINGS.noNetwork,
                             autoDim: cc.autoDim !== undefined ? !!cc.autoDim : true,
-                            bgm: cc.bgm !== undefined ? !!cc.bgm : true,
-                            useOsuStarAsLevel: cc.useOsuStarAsLevel !== undefined ? !!cc.useOsuStarAsLevel : true
+                            bgm: cc.bgm !== undefined ? !!cc.bgm : true
                         });
                     } catch(e){
                         console.warn('[4KCC] loadSettings 失败', e);
@@ -995,12 +908,12 @@
                         }
 
                         obj['4kcc'] = {
+                            idbLib: !!values.idbLib,
                             idbMainBanner: !!values.idbMainBanner,
                             suggestionConfirmed: !!values.suggestionConfirmed,
                             noNetwork: !!values.noNetwork,
                             autoDim: values.autoDim !== undefined ? !!values.autoDim : true,
-                            bgm: values.bgm !== undefined ? !!values.bgm : true,
-                            useOsuStarAsLevel: values.useOsuStarAsLevel !== undefined ? !!values.useOsuStarAsLevel : true
+                            bgm: values.bgm !== undefined ? !!values.bgm : true
                         };
 
                         var res = await window.__4kcc_idbPut(db, 'meta', 'info.json', obj);
@@ -1113,197 +1026,6 @@
                 })();
             });
         };
-
-        (function(){
-            var INDIV_DECAY=0.125, OVER_DECAY=0.3, DECAY_WEIGHT=0.9, SECTION=400, DIFF_MULT=0.018;
-            var pow=Math.pow;
-            function applyDecay(v,dt,base){ return v*pow(base,dt/1000.0); }
-            function rte(x){
-                var f=Math.floor(x), d=x-f;
-                if(d>0.5) return f+1;
-                if(d<0.5) return f;
-                return f%2===0?f:f+1;
-            }
-            function osuLegacySort(arr,cmp){
-                function swap(i,j){ if(i!==j){ var t=arr[i]; arr[i]=arr[j]; arr[j]=t; } }
-                function swapIfGreater(a,b){ if(a!==b && cmp(arr[a],arr[b])>0) swap(a,b); }
-                function downHeap(i,n,lo){
-                    while(i<=Math.floor(n/2)){
-                        var child=2*i;
-                        if(child<n && cmp(arr[lo+child-1],arr[lo+child])<0) child+=1;
-                        if(cmp(arr[lo+i-1],arr[lo+child-1])>=0) break;
-                        swap(lo+i-1,lo+child-1); i=child;
-                    }
-                }
-                function heapSort(lo,hi){
-                    var n=hi-lo+1;
-                    for(var i=Math.floor(n/2);i>=1;i--) downHeap(i,n,lo);
-                    for(var i=n;i>=2;i--){ swap(lo,lo+i-1); downHeap(1,i-1,lo); }
-                }
-                function quick(left,right,depth){
-                    while(true){
-                        if(depth===0){ heapSort(left,right); return; }
-                        var i=left,j=right;
-                        var middle=i+((j-i)>>1);
-                        swapIfGreater(i,middle); swapIfGreater(i,j); swapIfGreater(middle,j);
-                        while(true){
-                            while(cmp(arr[i],arr[middle])<0) i+=1;
-                            while(cmp(arr[middle],arr[j])<0) j-=1;
-                            if(i<j) swap(i,j);
-                            else if(i===j){}
-                            else break;
-                            i+=1; j=j>0?j-1:0;
-                            if(i>j) break;
-                        }
-                        depth-=1;
-                        if(Math.max(0,j-left)<=right-i){
-                            if(left<j) quick(left,j,depth);
-                            left=i;
-                        } else {
-                            if(i<right) quick(i,right,depth);
-                            right=j;
-                        }
-                        if(left>=right) break;
-                    }
-                }
-                if(arr.length>=2) quick(0,arr.length-1,32);
-            }
-            function parseOsu(t){
-                var mode=null, cs=5, sec=null, objs=[];
-                var lines=t.split(/\r?\n/);
-                for(var li=0; li<lines.length; li++){
-                    var line=lines[li].trim();
-                    if(!line || line.indexOf('//')===0) continue;
-                    if(line[0]==='['){ sec=line.slice(1,-1).toLowerCase(); continue; }
-                    if(sec==='general'){
-                        var m=/^mode\s*:\s*(\d+)/i.exec(line); if(m) mode=+m[1];
-                    } else if(sec==='difficulty'){
-                        var m=/^circlesize\s*:\s*([\d.]+)/i.exec(line); if(m) cs=+m[1];
-                    } else if(sec==='hitobjects'){
-                        var p=line.split(','); if(p.length<4) continue;
-                        var x=Math.trunc(+p[0]), start=+p[2], type=+p[3];
-                        var end=start;
-                        if(type&128 || type&8){
-                            var ep=p[5]?p[5].split(':')[0]:String(start);
-                            end=Math.max(start,+ep);
-                        }
-                        objs.push({x:x,start:start,end:end});
-                    }
-                }
-                return {mode:mode, cs:cs, objs:objs};
-            }
-            function calcStars(objs,cs){
-                var nObjects=objs.length;
-                if(!nObjects) return null;
-                var total=Math.max(1,rte(cs));
-                var objects=objs.slice();
-                osuLegacySort(objects,function(a,b){ return rte(a.start)-rte(b.start); });
-                var divisor=512/total;
-                for(var oi=0; oi<objects.length; oi++){
-                    var o=objects[oi];
-                    o.col=Math.min(Math.floor(o.x/divisor),total-1);
-                    if(o.col<0) o.col=0;
-                }
-                var maxCombo=0, nHold=0;
-                for(var oi2=0; oi2<objects.length; oi2++){
-                    maxCombo+=1;
-                    var dur=objects[oi2].end-objects[oi2].start;
-                    if(dur>0){ maxCombo+=Math.trunc(dur/100); nHold+=1; }
-                }
-                if(nObjects<2) return {stars:0};
-                var individual=new Array(total).fill(0);
-                var highest=0, overall=1.0, current=0;
-                var sectionPeak=0, sectionEnd=0;
-                var peaks=[];
-                var perColLastStart=new Array(total).fill(null);
-                var prevHit=new Array(total).fill(null);
-                function evalIndividual(c,prev){
-                    var bonus=false;
-                    for(var pi=0; pi<prev.length; pi++){
-                        var p=prev[pi];
-                        if(p && p.end>c.end+1.0 && c.start>p.start+1.0){ bonus=true; break; }
-                    }
-                    return 2.0*(bonus?1.25:1.0);
-                }
-                function evalOverall(c,prev){
-                    var start=c.start, end=c.end;
-                    var overlapping=false;
-                    var closest=Math.abs(end-start);
-                    var holdFactor=1.0, holdAdd=0.0;
-                    for(var pi2=0; pi2<prev.length; pi2++){
-                        var p=prev[pi2];
-                        if(!p) continue;
-                        if(p.end>start+1.0 && end>p.end+1.0 && start>p.start+1.0) overlapping=true;
-                        if(p.end>end+1.0 && start>p.start+1.0) holdFactor=1.25;
-                        var d=Math.abs(end-p.end);
-                        if(d<closest) closest=d;
-                    }
-                    if(overlapping) holdAdd=1.0/(1.0+Math.exp(0.27*(30.0-closest)));
-                    return (1.0+holdAdd)*holdFactor;
-                }
-                for(var i=1; i<objects.length; i++){
-                    var curr=objects[i];
-                    var prev=objects[i-1];
-                    var idx=i-1;
-                    var col=curr.col;
-                    var start=curr.start;
-                    var deltaTime=start-prev.start;
-                    if(idx>0) prevHit[prev.col]=prev;
-                    var prevInCol=perColLastStart[col];
-                    var colStrainTime=prevInCol===null?0:(start-prevInCol);
-                    if(idx===0) sectionEnd=Math.ceil(start/SECTION)*SECTION;
-                    while(start>sectionEnd){
-                        peaks.push(sectionPeak);
-                        var prevStart=idx===0?0.0:prev.start;
-                        sectionPeak=applyDecay(highest,sectionEnd-prevStart,INDIV_DECAY)
-                                   +applyDecay(overall,sectionEnd-prevStart,OVER_DECAY);
-                        sectionEnd+=SECTION;
-                    }
-                    individual[col]=applyDecay(individual[col],colStrainTime,INDIV_DECAY);
-                    individual[col]+=evalIndividual(curr,prevHit);
-                    highest=deltaTime<=1.0?Math.max(highest,individual[col]):individual[col];
-                    overall=applyDecay(overall,deltaTime,OVER_DECAY);
-                    overall+=evalOverall(curr,prevHit);
-                    var c=current*pow(1.0,deltaTime/1000.0);
-                    var sv=(highest+overall)-c;
-                    current=c+sv*1.0;
-                    var strain=current;
-                    if(strain>sectionPeak) sectionPeak=strain;
-                    perColLastStart[col]=start;
-                }
-                peaks.push(sectionPeak);
-                var filt=peaks.filter(function(p){ return p>0.0; });
-                filt.sort(function(a,b){ return b-a; });
-                var diff=0, w=1.0;
-                for(var fi=0; fi<filt.length; fi++){ diff+=filt[fi]*w; w*=DECAY_WEIGHT; }
-                return {stars:diff*DIFF_MULT};
-            }
-            window.__4kcc_calcOsuStar = function(osuContent){
-                try {
-                    var r = parseOsu(String(osuContent || ''));
-                    if (r.mode !== 3) return null;
-                    return formatStars(calcStars(r.objs, r.cs));
-                } catch(e) {
-                    return null;
-                }
-            };
-            window.__4kcc_calcOsuStarRaw = function(objs, cs){
-                try {
-                    if (!objs || objs.length === 0) return null;
-                    return formatStars(calcStars(objs, cs));
-                } catch(e) {
-                    return null;
-                }
-            };
-            function formatStars(res){
-                if (!res || typeof res.stars !== 'number' || !isFinite(res.stars)) return null;
-                var raw = res.stars;
-                if (raw < 0 || raw > 100) return null;
-                var neg = raw < 0;
-                var floored = Math.floor(Math.abs(raw) * 100) / 100;
-                return (neg ? '-' : '') + floored.toFixed(2);
-            }
-        })();
 
         window.__4kcc_hardReload = function(){
             try {
@@ -1423,20 +1145,20 @@
                     window.__4kcc_setNoNetwork(true);
                 }
 
+                var elLib = document.getElementById('settingIdbLib');
                 var elMain = document.getElementById('settingIdbMainBanner');
                 var elNoNet = document.getElementById('settingNoNetwork');
                 var elAutoDim = document.getElementById('settingAutoDim');
                 var elBgm = document.getElementById('settingBgm');
-                var elUseOsuStar = document.getElementById('settingUseOsuStar');
+                if (elLib) elLib.checked = !!settings.idbLib;
                 if (elMain) elMain.checked = !!settings.idbMainBanner;
                 if (elNoNet) elNoNet.checked = !!settings.noNetwork;
                 if (elAutoDim) elAutoDim.checked = !!settings.autoDim;
                 if (elBgm) elBgm.checked = !!settings.bgm;
-                if (elUseOsuStar) elUseOsuStar.checked = !!settings.useOsuStarAsLevel;
 
                 var forceNoNet = !!settings.noNetwork;
                 try {
-                    await window.__4kcc_loadJSZip(true, forceNoNet);
+                    await window.__4kcc_loadJSZip(!!settings.idbLib || forceNoNet, forceNoNet);
                 } catch(e){
                     console.error('[4KCC] JSZip 加载失败', e);
                     window.__4kcc_showAlert('JSZip 加载失败，请检查网络或 IDB 后重试', { reload: true });
@@ -1504,24 +1226,16 @@
         var doneDesc = document.getElementById('doneDesc');
         var doneRefreshBtn = document.getElementById('doneRefreshBtn');
         var addBgBtn = document.getElementById('addBgBtn');
-        var doneDropZone = document.getElementById('doneDropZone');
-        var doneFileInput = document.getElementById('doneFileInput');
-        var convertCountLine = document.getElementById('convertCountLine');
-
-        var previewChartBtn = document.getElementById('previewChartBtn');
-        var previewOverlay = document.getElementById('previewOverlay');
-        var previewFrame = document.getElementById('previewFrame');
-        var previewCloseBtn = document.getElementById('previewCloseBtn');
 
         var settingsEntry = document.getElementById('settingsEntry');
         var knownIssuesEntry = document.getElementById('knownIssuesEntry');
         var adEntryContainer = document.getElementById('adEntryContainer');
         var settingsConfirmBtn = document.getElementById('settingsConfirmBtn');
+        var settingIdbLib = document.getElementById('settingIdbLib');
         var settingIdbMainBanner = document.getElementById('settingIdbMainBanner');
         var settingNoNetwork = document.getElementById('settingNoNetwork');
         var settingAutoDim = document.getElementById('settingAutoDim');
         var settingBgm = document.getElementById('settingBgm');
-        var settingUseOsuStar = document.getElementById('settingUseOsuStar');
         var downloadJSZipBtn = document.getElementById('downloadJSZipBtn');
         var manageArtworkBtn = document.getElementById('manageArtworkBtn');
         var clearIdbBtn = document.getElementById('clearIdbBtn');
@@ -1538,33 +1252,16 @@
         var sourceType = '', targetType = '';
         var selectedChartData = null, rawZip = null;
         var isPezParsePending = false;
-        var chartViewAll = false;
+        var isMultiMode = false;
         var selectedIndices = [];
         var isBusy = false;
         var PLACEHOLDER_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
         var PLACEHOLDER_NAME = '_placeholder.png';
-        var TOOL_TEXT = '本谱面使用4KCC转换\n本工具使用DeepSeek编写\n作者:b站SeaSinvo\n严禁进行低创创作';
+        var TOOL_TEXT = '本工具使用DeepSeek编写\n作者:b站SeaSinvo\n严禁进行低创创作';
         var KNOWN_BUGS_TEXT = '暂无';
         var PLANNED_FEATURES_TEXT = '制作谱面预览器';
-        var HIT_URL = 'https://abacus.jasoncameron.dev/hit/seasinvo-github-io/chart-convert-time';
-        var GET_URL = 'https://abacus.jasoncameron.dev/get/seasinvo-github-io/chart-convert-time';
-        var PREVIEW_BASE = 'https://seasinvo.github.io/4KCC_Tool/chartview/';
 
-        /* ---------- 预览状态 ---------- */
-        var previewPendingData = null;
-        var previewFrameReady = false;
-        var previewIframeActive = false;
-        var previewTempNet = false;
-
-        function osuXOf(K, i){
-            if (K <= 0) K = 4;
-            return Math.floor(512 / K * (i + 0.5));
-        }
-        function pezXOf(K, i, N){
-            if (K <= 1) return 0;
-            return (i / (K - 1) * 2 - 1) * N;
-        }
-
+        /* ============ 背景音乐（Web Audio 合成，循环播放） ============ */
         var BGM_PACKED = `418,67,41
 430,70,50
 208,67,52
@@ -1912,7 +1609,8 @@
             }
         };
 
-        function createDropdown(container, options, title){
+        /* ============ 下拉框 ============ */
+        function createDropdown(container, options){
             container.classList.add('dropdown');
             container.innerHTML = '';
             var state = { value: options[0] ? options[0].value : '' };
@@ -1922,10 +1620,25 @@
             var arrowEl = document.createElement('span');
             arrowEl.className = 'dd-arrow';
             arrowEl.textContent = '▼';
+            var panelEl = document.createElement('div');
+            panelEl.className = 'dd-panel';
+
+            options.forEach(function(opt){
+                var item = document.createElement('div');
+                item.className = 'dd-option';
+                item.textContent = opt.label;
+                item.dataset.value = opt.value;
+                item.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    setValue(opt.value);
+                    closeDD();
+                });
+                panelEl.appendChild(item);
+            });
+
             container.appendChild(textEl);
             container.appendChild(arrowEl);
-
-            var overlay = null;
+            container.appendChild(panelEl);
 
             function updateDisplay(){
                 var opt = null;
@@ -1933,6 +1646,10 @@
                     if (options[i].value === state.value) { opt = options[i]; break; }
                 }
                 textEl.textContent = opt ? opt.label : (options[0] ? options[0].label : '');
+                Array.prototype.forEach.call(panelEl.children, function(item){
+                    if (item.dataset.value === state.value) item.classList.add('selected');
+                    else item.classList.remove('selected');
+                });
             }
 
             function setValue(v){
@@ -1940,71 +1657,29 @@
                 updateDisplay();
             }
 
-            function buildOverlay(){
-                overlay = document.createElement('div');
-                overlay.className = 'dd-modal-overlay';
-
-                var dialog = document.createElement('div');
-                dialog.className = 'dd-modal-dialog';
-
-                var header = document.createElement('div');
-                header.className = 'dd-modal-header';
-                header.textContent = title || '请选择';
-                dialog.appendChild(header);
-
-                var list = document.createElement('div');
-                list.className = 'dd-modal-list';
-                options.forEach(function(opt){
-                    var item = document.createElement('div');
-                    item.className = 'dd-modal-option';
-                    item.textContent = opt.label;
-                    item.dataset.value = opt.value;
-                    item.addEventListener('click', function(e){
-                        e.stopPropagation();
-                        setValue(opt.value);
-                        closeModal();
-                    });
-                    list.appendChild(item);
-                });
-                dialog.appendChild(list);
-                overlay.appendChild(dialog);
-
-                overlay.addEventListener('click', function(e){
-                    if (e.target === overlay) closeModal();
-                });
-                document.body.appendChild(overlay);
+            function closeDD(){
+                container.classList.remove('open');
+                if (!document.querySelector('.dropdown.open')) {
+                    document.body.classList.remove('dd-open');
+                }
             }
 
-            function refreshSelected(){
-                if (!overlay) return;
-                Array.prototype.forEach.call(overlay.querySelectorAll('.dd-modal-option'), function(item){
-                    if (item.dataset.value === state.value) item.classList.add('selected');
-                    else item.classList.remove('selected');
-                });
-            }
-
-            function onKeyDown(e){
-                if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
-            }
-
-            function openModal(){
-                if (!overlay) buildOverlay();
-                refreshSelected();
-                overlay.classList.add('active');
-                document.addEventListener('keydown', onKeyDown);
-            }
-
-            function closeModal(){
-                if (!overlay) return;
-                overlay.classList.remove('active');
-                document.removeEventListener('keydown', onKeyDown);
-            }
-
-            container._closeDD = closeModal;
+            container._closeDD = closeDD;
 
             container.addEventListener('click', function(e){
                 e.stopPropagation();
-                openModal();
+                if (container.classList.contains('open')) {
+                    closeDD();
+                } else {
+                    document.querySelectorAll('.dropdown.open').forEach(function(d){
+                        if (d !== container) {
+                            d.classList.remove('open');
+                            if (d._closeDD) d._closeDD();
+                        }
+                    });
+                    container.classList.add('open');
+                    document.body.classList.add('dd-open');
+                }
             });
 
             updateDisplay();
@@ -2023,7 +1698,7 @@
             { value: 'mcz', label: 'mcz (Malody)' },
             { value: 'osz', label: 'osz (osu!mania)' },
             { value: '4kz', label: '4kz (4KCC)' }
-        ], '选择谱面格式');
+        ]);
 
         var editFormat = createDropdown(document.getElementById('editFormat'), [
             { value: '', label: '— 请选择 —' },
@@ -2031,7 +1706,7 @@
             { value: 'mcz', label: 'mcz (Malody)' },
             { value: 'osz', label: 'osz (osu!mania)' },
             { value: '4kz', label: '4kz (4KCC)' }
-        ], '选择输出格式');
+        ]);
 
         document.addEventListener('click', function(){
             document.querySelectorAll('.dropdown.open').forEach(function(d){
@@ -2102,69 +1777,6 @@
                 isBusy = false;
                 if (btn) { btn.disabled = false; btn.textContent = oldText; }
             }
-        }
-
-        function reportConversionCount(){
-            if (appSettings && appSettings.noNetwork) return;
-            try {
-                if (typeof fetch !== 'function') return;
-                var el = convertCountLine || document.getElementById('convertCountLine');
-                if (el) {
-                    var cur = 0;
-                    var m = el.textContent.match(/(\d+)\s*$/);
-                    if (m) cur = parseInt(m[1], 10) || 0;
-                    el.textContent = '已转换谱面次数：' + (cur + 1);
-                }
-                fetch(HIT_URL).then(function(res){
-                    if (!res.ok) return null;
-                    return res.json();
-                }).then(function(data){
-                    if (!data) return;
-                    if (el && typeof data.value !== 'undefined') {
-                        el.textContent = '已转换谱面次数：' + data.value;
-                    }
-                }).catch(function(){});
-            } catch(e){}
-        }
-
-        function loadConvertCount(){
-            var el = convertCountLine || document.getElementById('convertCountLine');
-            if (!el) return;
-            if (appSettings && appSettings.noNetwork) {
-                el.textContent = '已转换谱面次数：—';
-                return;
-            }
-            try {
-                if (typeof fetch !== 'function') { el.textContent = '已转换谱面次数：—'; return; }
-                fetch(GET_URL).then(function(res){
-                    if (res.status === 404) { el.textContent = '已转换谱面次数：0'; return null; }
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    return res.json();
-                }).then(function(data){
-                    if (!data) return;
-                    var v = (data && typeof data.value !== 'undefined') ? data.value : '—';
-                    el.textContent = '已转换谱面次数：' + v;
-                }).catch(function(){
-                    el.textContent = '已转换谱面次数：—';
-                });
-            } catch(e) {
-                el.textContent = '已转换谱面次数：—';
-            }
-        }
-
-        function formatFailureSummary(failures){
-            if(!failures || failures.length === 0) return '';
-            var counts = { json_parse:0, missing_meta:0, not_mania:0, read_error:0 };
-            for(var i=0;i<failures.length;i++){
-                var r = failures[i].reason;
-                if(counts[r] !== undefined) counts[r]++; else counts.read_error++;
-            }
-            var parts = [];
-            if(counts.json_parse) parts.push(counts.json_parse + ' 个解析失败');
-            if(counts.missing_meta) parts.push(counts.missing_meta + ' 个元数据缺失');
-            if(counts.not_mania) parts.push(counts.not_mania + ' 个非目标模式');
-            if(counts.read_error) parts.push(counts.read_error + ' 个读取失败');
-            return parts.join('、');
         }
 
         var bgImgEl = document.getElementById('bgImageLayer');
@@ -2378,7 +1990,7 @@
             bgImgEl.classList.remove('show');
         };
 
-        function applyBackgroundFromData(data){
+        function extractAndSetBackground(data) {
             if (data && data.imageData && data.imageName !== PLACEHOLDER_NAME) {
                 if (window.setBackgroundImage) window.setBackgroundImage(data.imageData);
             }
@@ -2464,6 +2076,15 @@
             }
         }
 
+        function showError(msg, noReload) {
+            var m = msg || '该谱面不是标准 4K 谱面';
+            if (noReload) {
+                window.__4kcc_showAlert(m);
+            } else {
+                window.__4kcc_showError(m);
+            }
+        }
+
         function applyIconsByNetwork(){
             var block = window.__4kcc_settings.values.noNetwork;
             var imgs = document.querySelectorAll('img[data-src]');
@@ -2502,7 +2123,7 @@
             currentFile = null; fileBuffer = null;
             parsedDataList = []; selectedChartData = null; rawZip = null;
             isPezParsePending = false; sourceType = ''; targetType = '';
-            chartViewAll = false; selectedIndices = [];
+            isMultiMode = false; selectedIndices = [];
             fileInput.value = ''; formatSelectZip.value = '';
             updateFileStatus(null); editFormat.value = '';
             paramsBpmWarning.style.display = 'none';
@@ -2609,25 +2230,18 @@
             });
         }
 
-        /* ============ 扫描 / 解析 ============ */
         async function scanMCZ(zip){
             var entries = Object.keys(zip.files).filter(function(p){ var e=zip.files[p]; if(e.dir) return false; var n=p.split('/').pop(); return n&&n.length>0&&n.endsWith('.mc'); });
             var charts=[];
-            var failures=[];
             for(var pi=0; pi<entries.length; pi++){
                 var p=entries[pi];
                 try{
                     var e=zip.files[p]; var c=await e.async('string'); var j=JSON.parse(c);
                     var m=j.meta||{}; var mode=m.mode; var col=m.mode_ext && m.mode_ext.column;
-                    if(mode !== 0){ failures.push({file:p, reason:'not_mania'}); continue; }
-                    var kn = 4;
-                    if(typeof col === 'number' && isFinite(col) && col > 0) kn = Math.floor(col);
-                    else if(typeof col === 'string' && col.length>0){ var pn = parseInt(col,10); if(!isNaN(pn) && pn>0) kn = pn; }
-                    if(kn <= 0){ failures.push({file:p, reason:'missing_meta'}); continue; }
-                    charts.push({path:p, version:m.version||'Unknown', json:j, content:c, keynum:kn, is4K: kn === 4});
-                } catch(e){ failures.push({file:p, reason:'json_parse'}); }
+                    if(mode===0&&col===4) charts.push({path:p, version:m.version||'Unknown', json:j, content:c});
+                } catch(e){}
             }
-            return { charts: charts, failures: failures };
+            return charts;
         }
 
         async function parseMCZFull(zip, chartData){
@@ -2644,96 +2258,56 @@
                 var type=isHold?2:1;
                 noteData.push({start:start,end:end,column:col,type:type});
             }
-            
-            var entries=Object.keys(zip.files); 
-            var audioEntry=null, imageEntry=null;
-            var cleanAudioName = (audioName || '').replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
-            var cleanBgName = (bgName || '').replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
-
-            for(var ei=0; ei<entries.length; ei++){ 
-                var p2=entries[ei]; var n3=p2.split('/').pop(); 
-                if(cleanAudioName && n3===cleanAudioName) audioEntry=zip.files[p2]; 
-                if(cleanBgName && n3===cleanBgName) imageEntry=zip.files[p2]; 
-            }
-            if(!audioEntry){
-                for(var ei3=0; ei3<entries.length; ei3++){
-                    var p4=entries[ei3]; var n4=p4.split('/').pop();
-                    if(/\.(mp3|ogg|wav)$/i.test(n4)){ audioEntry=zip.files[p4]; audioName=n4; break; }
-                }
-            }
-            if(!imageEntry){
-                for(var ei2=0; ei2<entries.length; ei2++){
-                    var p3=entries[ei2]; var n3=p3.split('/').pop();
-                    if(/\.(jpg|jpeg|png)$/i.test(n3)){ imageEntry=zip.files[p3]; bgName=n3; break; }
-                }
-            }
-
-            var audioData=null, imageData=null, imageName=bgName;
-            if(audioEntry){ 
-                audioData=await audioEntry.async('arraybuffer'); 
-                audioName = audioEntry.name.split('/').pop();
-            } else {
-                audioName = '';
-            }
-            if(imageEntry) {
-                imageData=await imageEntry.async('arraybuffer');
-                imageName = imageEntry.name.split('/').pop();
-            } else { 
-                imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; 
-            }
-
+            var entries=Object.keys(zip.files); var audioEntry=null, imageEntry=null;
+            for(var ei=0; ei<entries.length; ei++){ var p2=entries[ei]; var n3=p2.split('/').pop(); if(audioName&&n3===audioName) audioEntry=zip.files[p2]; if(bgName&&n3===bgName) imageEntry=zip.files[p2]; }
+            var audioData=null;
+            if(audioEntry){ audioData=await audioEntry.async('arraybuffer'); }
+            var imageData=null, imageName=bgName;
+            if(imageEntry) imageData=await imageEntry.async('arraybuffer');
+            else { imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; }
             var offsetForTmp=-mczOffset;
             var bpmSegments=bpmList.map(function(b){ return {beat:b.beat,bpm:b.bpm}; });
             var hasMultipleBPM=bpmSegments.length>1;
-            return {
+            var result = {
                 type:'mcz', title:song.title||'Untitled', level:meta.version||'4K',
                 composer:song.artist||'Unknown', charter:meta.creator||'Unknown', illustrator:'UK',
                 audio:audioName, background:imageName, duration:0,
                 bpmSegments:bpmSegments, hasMultipleBPM:hasMultipleBPM, offset:offsetForTmp,
                 notes:noteData, audioData:audioData, imageData:imageData,
-                audioName:audioName, imageName:imageName, mcJson:mcJson,
-                keynum: chartData.keynum || 4
+                audioName:audioName, imageName:imageName, mcJson:mcJson
             };
+            extractAndSetBackground(result);
+            return result;
         }
 
         async function scanOSZ(zip){
             var entries=Object.keys(zip.files).filter(function(p){ var e=zip.files[p]; if(e.dir) return false; var n=p.split('/').pop(); return n&&n.length>0&&n.endsWith('.osu'); });
             var charts=[];
-            var failures=[];
             for(var pi=0; pi<entries.length; pi++){
                 var p=entries[pi];
                 try{
                     var e=zip.files[p]; var c=await e.async('string');
-                    c = c.replace(/^\uFEFF/, '');
                     var mm=c.match(/\[General\][\s\S]*?Mode:\s*(\d+)/i);
-                    var cs=c.match(/\[Difficulty\][\s\S]*?CircleSize:\s*([\d.]+)/i);
-                    var mode=mm?parseInt(mm[1]):-1;
-                    if(mode !== 3){ failures.push({file:p, reason:'not_mania'}); continue; }
-                    var kn = 4;
-                    if(cs){ var pn = Math.round(parseFloat(cs[1])); if(!isNaN(pn) && pn > 0) kn = pn; }
-                    if(kn <= 0){ failures.push({file:p, reason:'missing_meta'}); continue; }
-                    var vm=c.match(/\[Metadata\][\s\S]*?Version:\s*([^\n\r]+)/i);
-                    var ver=vm?vm[1].trim():'Unknown';
-                    charts.push({path:p, version:ver, content:c, keynum: kn, is4K: kn === 4});
-                } catch(e){ failures.push({file:p, reason:'read_error'}); }
+                    var cs=c.match(/\[Difficulty\][\s\S]*?CircleSize:\s*(\d+)/i);
+                    var mode=mm?parseInt(mm[1]):-1; var csn=cs?parseInt(cs[1]):-1;
+                    if(mode===3&&csn===4){
+                        var vm=c.match(/\[Metadata\][\s\S]*?Version:\s*([^\n\r]+)/i);
+                        var ver=vm?vm[1].trim():'Unknown';
+                        charts.push({path:p, version:ver, content:c});
+                    }
+                } catch(e){}
             }
-            return { charts: charts, failures: failures };
+            return charts;
         }
 
         async function parseOSZFull(zip, chartData){
             var content=chartData.content;
-            content = content.replace(/^\uFEFF/, '');
-            var general=content.match(/\[General\][\s\S]*?(?=\n\[[A-Z])/i);
-            var metadata=content.match(/\[Metadata\][\s\S]*?(?=\n\[[A-Z])/i);
-            var timingPoints=content.match(/\[TimingPoints\][\s\S]*?(?=\n\[[A-Z])/i);
+            var general=content.match(/\[General\][\s\S]*?(?=\[[A-Z])/i);
+            var metadata=content.match(/\[Metadata\][\s\S]*?(?=\[[A-Z])/i);
+            var timingPoints=content.match(/\[TimingPoints\][\s\S]*?(?=\[[A-Z])/i);
             var hitObjects=content.match(/\[HitObjects\][\s\S]*/i);
-            
             var audioName='';
-            var am = content.match(/AudioFilename:\s*([^\r\n]+)/i);
-            if (am && am[1]) {
-                audioName = am[1].replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/^"|"$/g, '').trim();
-            }
-
+            if(general){ var m=general[0].match(/AudioFilename:\s*([^\n\r]+)/i); if(m) audioName=m[1].trim(); }
             var title='', artist='', creator='', version='';
             if(metadata){
                 var t=metadata[0].match(/Title:\s*([^\n\r]+)/i);
@@ -2743,9 +2317,8 @@
                 if(t) title=t[1].trim(); if(a) artist=a[1].trim(); if(c) creator=c[1].trim(); if(v) version=v[1].trim();
             }
             var bgName='';
-            var events=content.match(/\[Events\][\s\S]*?(?=\n\[[A-Z])/i);
-            if(events){ var bm=events[0].match(/0,0,"([^"]+\.(?:jpg|png|jpeg))"/i); if(bm) bgName=bm[1].trim(); }
-            
+            var events=content.match(/\[Events\][\s\S]*?(?=\[[A-Z])/i);
+            if(events){ var bm=events[0].match(/0,0,"([^"]+\.(?:jpg|png|jpeg))"/i); if(bm) bgName=bm[1]; }
             var bpmSegments=[];
             if(timingPoints){
                 var lines=timingPoints[0].split('\n').filter(function(l){ return l.trim()&&!l.trim().startsWith('//'); });
@@ -2789,7 +2362,8 @@
                     notes.push({x:x,time:time2,type:type2,endTime:endTime});
                 }
             }
-            var uniqueX=Array.from(new Set(xValues)).sort(function(a,b){ return a-b; });
+            var uniqueX=[...new Set(xValues)].sort(function(a,b){ return a-b; });
+            if(uniqueX.length!==4){ showError('该谱面不是标准 4K 谱面'); return null; }
             var xMap={}; uniqueX.forEach(function(x,idx){ xMap[x]=idx; });
             var noteData=[];
             for(var ni=0; ni<notes.length; ni++){
@@ -2811,16 +2385,11 @@
                 var typeVal=n.type===128?2:1;
                 noteData.push({start:startBeat,end:endBeat,column:col,type:typeVal});
             }
-            
-            var entries=Object.keys(zip.files); 
-            var audioEntry=null, imageEntry=null;
-            var cleanAudioName = (audioName || '').replace(/^"|"$/g, '').trim();
-            var cleanBgName = (bgName || '').replace(/^"|"$/g, '').trim();
-
+            var entries=Object.keys(zip.files); var audioEntry=null, imageEntry=null;
             for(var ei=0; ei<entries.length; ei++){
                 var p2=entries[ei]; var n2=p2.split('/').pop();
-                if(cleanAudioName && n2 === cleanAudioName) audioEntry=zip.files[p2];
-                if(cleanBgName && n2 === cleanBgName) imageEntry=zip.files[p2];
+                if(audioName&&n2===audioName) audioEntry=zip.files[p2];
+                if(bgName&&n2===bgName) imageEntry=zip.files[p2];
             }
             if(!imageEntry){
                 for(var ei2=0; ei2<entries.length; ei2++){
@@ -2828,37 +2397,21 @@
                     if(/\.(jpg|jpeg|png)$/i.test(n3)){ imageEntry=zip.files[p3]; bgName=n3; break; }
                 }
             }
-            if(!audioEntry){
-                for(var ei3=0; ei3<entries.length; ei3++){
-                    var p4=entries[ei3]; var n4=p4.split('/').pop();
-                    if(/\.(mp3|ogg|wav)$/i.test(n4)){ audioEntry=zip.files[p4]; audioName=n4; break; }
-                }
-            }
-
             var audioData=null, imageData=null; var duration=0;
-            if(audioEntry){ 
-                audioData=await audioEntry.async('arraybuffer'); 
-                audioName = audioEntry.name.split('/').pop();
-            } else {
-                audioName = '';
-            }
-            if(imageEntry) {
-                imageData=await imageEntry.async('arraybuffer');
-                bgName = imageEntry.name.split('/').pop();
-            } else { 
-                imageData=getPlaceholderBuffer(); bgName=PLACEHOLDER_NAME; 
-            }
-
+            if(audioEntry){ audioData=await audioEntry.async('arraybuffer'); }
+            if(imageEntry) imageData=await imageEntry.async('arraybuffer');
+            else { imageData=getPlaceholderBuffer(); bgName=PLACEHOLDER_NAME; }
             var bpmSegmentsForExport=bpmSegments.map(function(seg){ return { beat:floatToBeat(seg.sp), bpm:seg.bpm, time:seg.time }; });
-            return {
+            var result = {
                 type:'osz', title:title||'Untitled', level:version||'4K',
                 composer:artist||'Unknown', charter:creator||'Unknown', illustrator:'UK',
                 audio:audioName, background:bgName, duration:duration,
                 bpmSegments:bpmSegmentsForExport, hasMultipleBPM:hasMultipleBPM, offset:fmss,
                 notes:noteData, audioData:audioData, imageData:imageData,
-                audioName:audioName, imageName:bgName, osuContent:content, firstOffset:fmss,
-                keynum: chartData.keynum || 4
+                audioName:audioName, imageName:bgName, osuContent:content, firstOffset:fmss
             };
+            extractAndSetBackground(result);
+            return result;
         }
 
         var OFFLINE_TICKS_PER_BEAT = 32;
@@ -3188,25 +2741,10 @@
             charter = charter || 'Unknown';
             illustrator = illustrator || 'UK';
 
-            var cleanAudioFile = (audioFile || '').replace(/^"|"$/g, '').trim();
-            var cleanBgFile = (bgFile || '').replace(/^"|"$/g, '').trim();
-
             for(var ei4=0; ei4<entries.length; ei4++){
                 var p4=entries[ei4]; var n4=p4.split('/').pop(); var e3=zip.files[p4];
-                if(cleanAudioFile && n4===cleanAudioFile){ audioData=await e3.async('arraybuffer'); audioName=n4; }
-                if(cleanBgFile && n4===cleanBgFile){ imageData=await e3.async('arraybuffer'); imageName=n4; }
-            }
-            if(!audioData){
-                for(var ei5=0; ei5<entries.length; ei5++){
-                    var p5=entries[ei5]; var n5=p5.split('/').pop();
-                    if(/\.(mp3|ogg|wav)$/i.test(n5)){ audioData=await zip.files[p5].async('arraybuffer'); audioName=n5; break; }
-                }
-            }
-            if(!imageData){
-                for(var ei6=0; ei6<entries.length; ei6++){
-                    var p6=entries[ei6]; var n6=p6.split('/').pop();
-                    if(/\.(jpg|jpeg|png)$/i.test(n6)){ imageData=await zip.files[p6].async('arraybuffer'); imageName=n6; break; }
-                }
+                if(audioFile&&n4===audioFile){ audioData=await e3.async('arraybuffer'); audioName=n4; }
+                if(bgFile&&n4===bgFile){ imageData=await e3.async('arraybuffer'); imageName=n4; }
             }
             if(!imageData){ imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; }
 
@@ -3510,13 +3048,7 @@
 
             if(finalNotes.length===0){ showError('所有音符皆无法分配或冲突'); return null; }
 
-            finalNotes.sort(function(a, b){
-                var sa = a.start[0] + a.start[1] / (a.start[2] || 1);
-                var sb = b.start[0] + b.start[1] / (b.start[2] || 1);
-                return sa - sb;
-            });
-
-            return {
+            var result2 = {
                 type: 'pez',
                 title: title, level: level,
                 composer: composer, charter: charter, illustrator: illustrator,
@@ -3525,88 +3057,52 @@
                 offset: pezOffset,
                 notes: finalNotes.map(function(n){ return { start: n.start, end: n.end, column: n.column, type: n.type }; }),
                 audioData: audioData, imageData: imageData,
-                audioName: audioName, imageName: imageName, chartJson: chartJson,
-                keynum: 4
+                audioName: audioName, imageName: imageName, chartJson: chartJson
             };
+            extractAndSetBackground(result2);
+            return result2;
         }
 
         async function parse4KZ(zip){
             var files = zip.files;
-            var tmpFContent = null;
-            var tmpTEntries = [];
-            var audioData = null, imageData = null;
+            var tmpFContent = null, tmpTContent = null, audioData = null, imageData = null;
             var audioName = '', imageName = '';
             for(var path in files){
                 var file = files[path];
                 if(file.dir) continue;
                 var name = path.split('/').pop();
                 if(name === 'Tmp-F.txt') tmpFContent = await file.async('string');
-                else if(/^Tmp-T\d*\.txt$/.test(name)) tmpTEntries.push({ name: name, content: await file.async('string') });
+                else if(name === 'Tmp-T.txt') tmpTContent = await file.async('string');
                 else if(name.startsWith('audio.')) { audioData = await file.async('arraybuffer'); audioName = name; }
                 else if(name.startsWith('bg.')) { imageData = await file.async('arraybuffer'); imageName = name; }
             }
-            if(!tmpFContent || tmpTEntries.length === 0){
-                return { list: [], failures: [{ file: 'Tmp-F/Tmp-T', reason: 'missing_meta' }] };
-            }
-
-            tmpTEntries.sort(function(a, b){
-                function rank(n){
-                    if (n === 'Tmp-T.txt') return 0;
-                    var m = n.match(/^Tmp-T(\d+)\.txt$/);
-                    return m ? parseInt(m[1], 10) : 9999;
-                }
-                return rank(a.name) - rank(b.name);
-            });
-
+            if(!tmpFContent || !tmpTContent){ showError('无效的 4kz 文件：缺少 Tmp-F.txt 或 Tmp-T.txt'); return null; }
             var meta = parseTmpF(tmpFContent);
-            if(!meta.bpmSegments || meta.bpmSegments.length === 0){
-                return { list: [], failures: [{ file: 'Tmp-F.txt', reason: 'missing_meta' }] };
-            }
-
-            var list = [];
-            var failures = [];
-            for (var i = 0; i < tmpTEntries.length; i++) {
-                var notes = parseTmpT(tmpTEntries[i].content);
-                var lv = meta.level;
-                var ch = meta.charter;
-                var kn = meta.keynum;
-                if (Array.isArray(lv)) lv = lv[i] !== undefined ? lv[i] : (lv[0] || '4K');
-                if (Array.isArray(ch)) ch = ch[i] !== undefined ? ch[i] : (ch[0] || 'Unknown');
-                if (Array.isArray(kn)) kn = kn[i] !== undefined ? kn[i] : 4;
-                else if (kn === undefined || kn === null || kn === '') kn = 4;
-                kn = parseInt(kn, 10);
-                if(isNaN(kn) || kn <= 0){ failures.push({ file: tmpTEntries[i].name, reason: 'missing_meta' }); continue; }
-
-                list.push({
-                    type: '4kz',
-                    title: meta.title || 'Untitled',
-                    level: (typeof lv === 'string' ? lv : (Array.isArray(lv) ? lv[0] : '4K')) || '4K',
-                    composer: meta.composer || 'Unknown',
-                    charter: (typeof ch === 'string' ? ch : (Array.isArray(ch) ? ch[0] : 'Unknown')) || 'Unknown',
-                    illustrator: meta.illustrator || 'UK',
-                    audio: meta.audio || '', background: meta.background || '',
-                    duration: parseFloat(meta.duration) || 0,
-                    bpmSegments: meta.bpmSegments, hasMultipleBPM: meta.bpmSegments.length > 1,
-                    offset: parseFloat(meta.offset) || 0,
-                    notes: notes, audioData: audioData, imageData: imageData,
-                    audioName: audioName, imageName: imageName,
-                    keynum: kn, is4K: kn === 4
-                });
-            }
-            return { list: list, failures: failures };
+            var notes = parseTmpT(tmpTContent);
+            if(!meta.bpmSegments || meta.bpmSegments.length===0){ showError('4kz 文件缺少 BPM 信息'); return null; }
+            var result = {
+                type: '4kz',
+                title: meta.title || 'Untitled',
+                level: (typeof meta.level === 'string' ? meta.level : (Array.isArray(meta.level) ? meta.level[0] : '4K')) || '4K',
+                composer: meta.composer || 'Unknown',
+                charter: (typeof meta.charter === 'string' ? meta.charter : (Array.isArray(meta.charter) ? meta.charter[0] : 'Unknown')) || 'Unknown',
+                illustrator: meta.illustrator || 'UK',
+                audio: meta.audio || '', background: meta.background || '',
+                duration: parseFloat(meta.duration) || 0,
+                bpmSegments: meta.bpmSegments, hasMultipleBPM: meta.bpmSegments.length > 1,
+                offset: parseFloat(meta.offset) || 0,
+                notes: notes, audioData: audioData, imageData: imageData,
+                audioName: audioName, imageName: imageName
+            };
+            extractAndSetBackground(result);
+            return result;
         }
 
-        function notesToTmpT(notes, keynum){
-            var kn = keynum || 4;
-            if(kn <= 0) kn = 4;
-            var out = [];
-            for(var i=0;i<notes.length;i++){
-                var n = notes[i];
-                if(n.column >= kn) continue;
+        function notesToTmpT(notes){
+            return notes.map(function(n){
                 var s = n.start.join(','); var e = n.end.join(',');
-                out.push(s+'-'+e+'-'+n.column+'-'+n.type);
-            }
-            return out.join('\n');
+                return s+'-'+e+'-'+n.column+'-'+n.type;
+            }).join('\n');
         }
         function parseTmpF(tmpF){
             var lines = tmpF.trim().split('\n').filter(function(l){ return l.trim(); });
@@ -3617,7 +3113,7 @@
                 if(idx===-1) continue;
                 var key = line.slice(0,idx).trim();
                 var val = line.slice(idx+1).trim();
-                if(key === 'bpmSegments' || key === 'charter' || key === 'level' || key === 'keynum'){
+                if(key === 'bpmSegments' || key === 'charter' || key === 'level'){
                     try { data[key] = JSON.parse(val); } catch(e){ data[key] = val; }
                 } else {
                     data[key] = val;
@@ -3668,37 +3164,26 @@
         async function downloadSinglePEZ(data, pathCode, axisN, speedVal){
             var offsetVal = parseFloat(data.offset) || 0;
             var bpmSegments = data.bpmSegments;
-            var kn = data.keynum || 4;
-            if(kn <= 0) kn = 4;
-            var notesArray = [];
-            for(var ni=0; ni<data.notes.length; ni++){
-                var n = data.notes[ni];
-                if(n.column >= kn) continue;
-                notesArray.push({
+            var posMap = {0:-axisN, 1:-axisN/3, 2:axisN/3, 3:axisN};
+            var notesArray = data.notes.map(function(n){
+                return {
                     above:1, alpha:255, endTime:n.end, isFake:0,
-                    positionX: pezXOf(kn, n.column, axisN), size:1, speed:1,
+                    positionX: posMap[n.column] || 0, size:1, speed:1,
                     startTime:n.start, type:n.type, visibleTime:999999, yOffset:0
-                });
-            }
+                };
+            });
             var bpmList = bpmSegments.map(function(seg){
                 var bpm = (seg.bpm && seg.bpm > 0) ? seg.bpm : 120;
                 return {startTime:seg.beat||[0,0,1], bpm:bpm};
             });
-
-            var outAudioName = data.audioName ? data.audioName.split('/').pop().replace(/^"|"$/g, '').trim() : '';
-            var outImgName = data.imageName ? data.imageName.split('/').pop().replace(/^"|"$/g, '').trim() : '';
-            
-            if(data.audioData && !outAudioName) outAudioName = 'audio.mp3';
-            if(data.imageData && !outImgName) outImgName = 'bg.jpg';
-
             var chartJson = {
                 BPMList: bpmList,
                 META: {
-                    RPEVersion:160, background: outImgName, charter: data.charter||'',
+                    RPEVersion:160, background: data.background||'', charter: data.charter||'',
                     composer: data.composer||'', duration: parseFloat(data.duration)||0,
                     id: data.title||'Untitled', illustration: data.illustrator||'UK',
                     level: data.level||'4K', name: data.title||'Untitled',
-                    offset: offsetVal, song: outAudioName
+                    offset: offsetVal, song: data.audio||''
                 },
                 chartTime:0, judgeLineGroup:["Default"],
                 judgeLineList:[{
@@ -3723,24 +3208,20 @@
                 }],
                 multiLineString:"", multiScale:1
             };
-            
             var infoLines = [
                 '#', 'Name: '+(data.title||'Untitled'), 'Path: '+pathCode,
-                'Song: '+outAudioName, 'Picture: '+outImgName,
+                'Song: '+(data.audio||''), 'Picture: '+(data.background||''),
                 'Chart: chart.json', 'Level: '+(data.level||'4K'),
                 'Composer: '+(data.composer||''), 'Charter: '+(data.charter||''),
                 'Illustrator: '+(data.illustrator||'UK'),
-                'Length: '+((parseFloat(data.duration)||0).toFixed(3)),
-                'Keynum: '+kn
+                'Length: '+((parseFloat(data.duration)||0).toFixed(3))
             ];
             var zip = new JSZip();
             zip.file('info.txt', infoLines.join('\n'));
             zip.file('chart.json', JSON.stringify(chartJson, null, 3));
             zip.file('Tool.txt', TOOL_TEXT);
-            
-            if(data.audioData) zip.file(outAudioName, data.audioData);
-            if(data.imageData) zip.file(outImgName, data.imageData);
-
+            if(data.audioData && data.audioName) zip.file(data.audioName, data.audioData);
+            if(data.imageData && data.imageName) zip.file(data.imageName, data.imageData);
             var blob = await zip.generateAsync({type:'blob'});
             var dn = sanitizeFileName((data.title||'Untitled') + ' ' + (data.level||'4K')) + '.pez';
             downloadBlob(blob, dn);
@@ -3749,7 +3230,8 @@
 
         async function convertToMCZMulti(dataList){
             var d0 = dataList[0];
-            var mczOffset = -(parseFloat(d0.offset) || 0);
+            var offsetVal = parseFloat(d0.offset) || 0;
+            var mczOffset = -offsetVal;
             var bpmSegments = d0.bpmSegments;
             var isMulti = dataList.length > 1;
 
@@ -3758,15 +3240,13 @@
 
             for (var di = 0; di < dataList.length; di++) {
                 var data = dataList[di];
-                var kn = data.keynum || 4;
-                if(kn <= 0) kn = 4;
                 var mcJson = {
                     meta: {
                         $ver:0, creator: data.charter||'', background: d0.background||'',
                         version: data.level||'4K', id:0, mode:0,
                         time: Math.floor(Date.now()/1000),
                         song: { title: d0.title||'Untitled', artist: d0.composer||'', id:0 },
-                        mode_ext: { column: kn, bar_begin:0 }
+                        mode_ext: { column:4, bar_begin:0 }
                     },
                     time: bpmSegments.map(function(seg){
                         var bpm = (seg.bpm && seg.bpm > 0) ? seg.bpm : 120;
@@ -3778,7 +3258,6 @@
                 };
                 for(var ni=0; ni<data.notes.length; ni++){
                     var n = data.notes[ni];
-                    if(n.column >= kn) continue;
                     var note = { beat: n.start, column: n.column };
                     if(n.type === 2) note.endbeat = n.end;
                     mcJson.note.push(note);
@@ -3789,8 +3268,8 @@
                 zip.file(mcName, JSON.stringify(mcJson, null, 2));
             }
 
-            if(d0.audioData && d0.audioName) zip.file(d0.audioName.split('/').pop(), d0.audioData);
-            if(d0.imageData && d0.imageName) zip.file(d0.imageName.split('/').pop(), d0.imageData);
+            if(d0.audioData && d0.audioName) zip.file(d0.audioName, d0.audioData);
+            if(d0.imageData && d0.imageName) zip.file(d0.imageName, d0.imageData);
 
             var blob = await zip.generateAsync({type:'blob'});
             var baseName = sanitizeFileName(d0.title || 'Untitled');
@@ -3835,18 +3314,16 @@
                 }
             }
 
+            var colToX = [64, 192, 320, 448];
             var zip = new JSZip();
-            var bgExt = getExt(d0.imageName) || 'jpg';
-            var audioExt = getExt(d0.audioName) || 'ogg';
+            var bgExt = getExt(d0.background) || 'jpg';
+            var audioExt = getExt(d0.audio) || 'ogg';
 
             for (var di = 0; di < dataList.length; di++) {
                 var data = dataList[di];
-                var kn = data.keynum || 4;
-                if(kn <= 0) kn = 4;
                 var hitObjects = [];
                 for (var ni = 0; ni < data.notes.length; ni++) {
                     var n = data.notes[ni];
-                    if(n.column >= kn) continue;
                     var startBeat = n.start[0] + n.start[1] / (n.start[2] || 1);
 
                     var idx = -1;
@@ -3863,7 +3340,7 @@
 
                     var pureMs = segSp + (startBeat - segBeat) * msPerBeat;
                     var timeMs = Math.round(pureMs + offset);
-                    var x = osuXOf(kn, n.column);
+                    var x = colToX[n.column] || 64;
 
                     if (n.type === 1) {
                         hitObjects.push(x + ',192,' + timeMs + ',1,0,0:0:0:0');
@@ -3890,7 +3367,7 @@
                     '[Metadata]', 'Title: '+(d0.title||'Untitled'),
                     'Artist: '+(d0.composer||'Unknown'), 'Creator: '+(data.charter||'Unknown'),
                     'Version: '+(data.level||'4K'), '',
-                    '[Difficulty]', 'CircleSize: '+kn, 'HPDrainRate: '+hpDrain,
+                    '[Difficulty]', 'CircleSize: 4', 'HPDrainRate: '+hpDrain,
                     'OverallDifficulty: 6.5', 'ApproachRate: 5', 'SliderMultiplier: 1.4', '',
                     '[Events]', '0,0,"bg.'+bgExt+'",0,0', '',
                     '[TimingPoints]', ...timingLines, '',
@@ -3922,7 +3399,7 @@
             var zip = new JSZip();
             zip.file('Tool.txt', TOOL_TEXT);
 
-            var levelField, charterField, keynumField;
+            var levelField, charterField;
             if (isMulti) {
                 levelField = JSON.stringify(dataList.map(function(d){ return d.level || '4K'; }));
                 charterField = JSON.stringify(dataList.map(function(d){ return d.charter || 'Unknown'; }));
@@ -3930,8 +3407,6 @@
                 levelField = d0.level || '4K';
                 charterField = d0.charter || 'Unknown';
             }
-            keynumField = JSON.stringify(dataList.map(function(d){ return d.keynum || 4; }));
-
             var fLines = [
                 'title: '+(d0.title||'Untitled'),
                 'level: '+levelField,
@@ -3942,17 +3417,16 @@
                 'background: bg.'+imgExt,
                 'duration: '+(d0.duration||0),
                 'bpmSegments: '+JSON.stringify(d0.bpmSegments),
-                'offset: '+(d0.offset||0),
-                'keynum: '+keynumField
+                'offset: '+(d0.offset||0)
             ];
             zip.file('Tmp-F.txt', fLines.join('\n'));
 
             if (isMulti) {
                 for (var i = 0; i < dataList.length; i++) {
-                    zip.file('Tmp-T' + (i + 1) + '.txt', notesToTmpT(dataList[i].notes, dataList[i].keynum));
+                    zip.file('Tmp-T' + (i + 1) + '.txt', notesToTmpT(dataList[i].notes));
                 }
             } else {
-                zip.file('Tmp-T.txt', notesToTmpT(dataList[0].notes, dataList[0].keynum));
+                zip.file('Tmp-T.txt', notesToTmpT(dataList[0].notes));
             }
 
             if(d0.audioData) zip.file('audio.'+audioExt, d0.audioData);
@@ -3968,74 +3442,41 @@
 
         function renderChartList(charts){
             chartList.innerHTML = '';
-            chartViewAll = false;
-            if (multiToggleBtn) multiToggleBtn.textContent = '查看全部定轨谱面';
+            isMultiMode = false;
+            if (multiToggleBtn) multiToggleBtn.textContent = '开启多选';
 
             charts.forEach(function(c, idx){
                 var item = document.createElement('label');
                 item.className = 'chart-item';
                 item.dataset.idx = idx;
-                item.dataset.is4k = c.is4K ? '1' : '0';
 
                 var cb = document.createElement('input');
                 cb.type = 'checkbox';
                 cb.value = idx;
-                cb.checked = !!c.is4K;
                 cb.addEventListener('change', function(){
+                    if (!isMultiMode) {
+                        if (cb.checked) {
+                            chartList.querySelectorAll('input[type="checkbox"]').forEach(function(x){
+                                if (x !== cb) x.checked = false;
+                            });
+                        }
+                    }
                     updateSelectedIndices();
                     updateChartItemStyles();
                 });
 
                 var span = document.createElement('span');
-                span.className = 'chart-label';
                 span.textContent = c.version || 'Unknown';
 
                 item.appendChild(cb);
                 item.appendChild(span);
-
-                if(c.keynum && c.keynum > 0){
-                    var kn = document.createElement('span');
-                    kn.className = 'chart-keynum';
-                    kn.textContent = '[' + c.keynum + 'K]';
-                    item.appendChild(kn);
-                }
-
                 chartList.appendChild(item);
             });
 
-            applyChartFilter();
+            var first = chartList.querySelector('input[type="checkbox"]');
+            if (first) first.checked = true;
             updateSelectedIndices();
             updateChartItemStyles();
-        }
-
-        function applyChartFilter(){
-            var items = chartList.querySelectorAll('.chart-item');
-            var visible4k = 0;
-            for(var i=0;i<items.length;i++){
-                var item = items[i];
-                var is4k = item.dataset.is4k === '1';
-                if(chartViewAll || is4k){
-                    item.style.display = '';
-                    if(is4k) visible4k++;
-                } else {
-                    item.style.display = 'none';
-                }
-                var kn = item.querySelector('.chart-keynum');
-                if(kn) kn.style.display = chartViewAll ? '' : 'none';
-            }
-            var hint = document.getElementById('chartNo4kHint');
-            if(!hint){
-                hint = document.createElement('div');
-                hint.id = 'chartNo4kHint';
-                hint.style.cssText = 'text-align:center;color:#a0a8b0;font-size:14px;padding:20px 0;';
-                chartList.appendChild(hint);
-            }
-            if(!chartViewAll && visible4k === 0){
-                hint.textContent = '无 4K 谱面，点击"查看全部定轨谱面"来查看其他谱面。';
-                hint.style.display = '';
-            } else {
-                hint.style.display = 'none';
-            }
         }
 
         function updateSelectedIndices(){
@@ -4054,94 +3495,16 @@
         }
 
         multiToggleBtn.addEventListener('click', function(){
-            chartViewAll = !chartViewAll;
-            multiToggleBtn.textContent = chartViewAll ? '仅查看 4K 谱面' : '查看全部定轨谱面';
-            if(!chartViewAll){
-                chartList.querySelectorAll('.chart-item').forEach(function(item){
-                    if(item.dataset.is4k !== '1'){
-                        var cb = item.querySelector('input[type="checkbox"]');
-                        if(cb) cb.checked = false;
-                    }
-                });
+            isMultiMode = !isMultiMode;
+            multiToggleBtn.textContent = isMultiMode ? '退出多选' : '开启多选';
+            if (!isMultiMode) {
+                var checked = Array.from(chartList.querySelectorAll('input[type="checkbox"]:checked'));
+                chartList.querySelectorAll('input[type="checkbox"]').forEach(function(x){ x.checked = false; });
+                if (checked.length > 0) checked[0].checked = true;
+                updateSelectedIndices();
+                updateChartItemStyles();
             }
-            applyChartFilter();
-            updateSelectedIndices();
-            updateChartItemStyles();
         });
-
-        function buildStarInputFromInternal(dataList, index){
-            var d0 = dataList[0];
-            var bpmSegments = d0.bpmSegments.map(function(s){
-                return { beat: s.beat.slice(), bpm: (s.bpm && s.bpm > 0) ? s.bpm : 120 };
-            });
-            var offset = parseFloat(d0.offset) || 0;
-
-            var sp = 0;
-            for (var i = 0; i < bpmSegments.length; i++) {
-                if (i === 0) { bpmSegments[i].sp = 0; }
-                else {
-                    var prevBeat = bpmSegments[i-1].beat[0] + bpmSegments[i-1].beat[1] / (bpmSegments[i-1].beat[2] || 1);
-                    var curBeat = bpmSegments[i].beat[0] + bpmSegments[i].beat[1] / (bpmSegments[i].beat[2] || 1);
-                    var msPerBeat = 60000 / bpmSegments[i-1].bpm;
-                    sp += (curBeat - prevBeat) * msPerBeat;
-                    bpmSegments[i].sp = sp;
-                }
-            }
-
-            function beatToMs(beatArr){
-                var beat = beatArr[0] + beatArr[1] / (beatArr[2] || 1);
-                var idx = -1;
-                for (var bi = bpmSegments.length - 1; bi >= 0; bi--) {
-                    var segBeat = bpmSegments[bi].beat[0] + bpmSegments[bi].beat[1] / (bpmSegments[bi].beat[2] || 1);
-                    if (segBeat <= beat + 1e-9) { idx = bi; break; }
-                }
-                if (idx === -1) idx = 0;
-                var seg = bpmSegments[idx];
-                var segBeat = seg.beat[0] + seg.beat[1] / (seg.beat[2] || 1);
-                var msPerBeat = 60000 / seg.bpm;
-                var pureMs = seg.sp + (beat - segBeat) * msPerBeat;
-                return pureMs + offset;
-            }
-
-            var data = dataList[index];
-            var kn = data.keynum || 4;
-            if (kn <= 0) kn = 4;
-            var objs = [];
-            for (var ni = 0; ni < data.notes.length; ni++) {
-                var n = data.notes[ni];
-                if (n.column >= kn) continue;
-                var startMs = beatToMs(n.start);
-                var x = osuXOf(kn, n.column);
-                var endMs = startMs;
-                if (n.type === 2) {
-                    endMs = beatToMs(n.end);
-                }
-                objs.push({x: x, start: startMs, end: endMs});
-            }
-            return { objs: objs, cs: kn };
-        }
-
-        function stripStarSuffix(level){
-            return String(level || '').replace(/\s*\[★[\d.]+\]\s*$/, '');
-        }
-
-        function applyOsuStarToDataList(dataList){
-            if (!window.__4kcc_settings || !window.__4kcc_settings.values || !window.__4kcc_settings.values.useOsuStarAsLevel) return;
-            if (!dataList || dataList.length === 0) return;
-            for (var di = 0; di < dataList.length; di++) {
-                var d = dataList[di];
-                if (!d || !d.notes || !d.bpmSegments) continue;
-                try {
-                    var input = buildStarInputFromInternal(dataList, di);
-                    if (!input || !input.objs || input.objs.length === 0) continue;
-                    var star = window.__4kcc_calcOsuStarRaw(input.objs, input.cs);
-                    if (typeof star === 'string' && star.length > 0) {
-                        var orig = stripStarSuffix(d.level || '');
-                        d.level = orig + '[★' + star + ']';
-                    }
-                } catch(e) {}
-            }
-        }
 
         function applyMetaToForm(dataList){
             var d = dataList[0];
@@ -4173,206 +3536,6 @@
             }
         }
 
-        /* ============ 预览功能 ============ */
-        function parseTmpFForPreview(text){
-            var o = {};
-            text.split('\n').forEach(function(line){
-                var i = line.indexOf(':');
-                if (i < 0) return;
-                var k = line.slice(0, i).trim(), v = line.slice(i + 1).trim();
-                if (k === 'bpmSegments' || k === 'charter' || k === 'level' || k === 'keynum') {
-                    try { o[k] = JSON.parse(v); } catch(e){ o[k] = v; }
-                } else o[k] = v;
-            });
-            return o;
-        }
-        function parseTmpTForPreview(text){
-            var out = [];
-            text.split('\n').forEach(function(line){
-                line = line.trim(); if (!line) return;
-                var p = line.split('-');
-                if (p.length !== 4) return;
-                var st = p[0].split(',').map(Number);
-                var en = p[1].split(',').map(Number);
-                var col = parseInt(p[2], 10), type = parseInt(p[3], 10);
-                if (isNaN(col) || isNaN(type)) return;
-                out.push({ start: st, end: en, column: col, type: type });
-            });
-            return out;
-        }
-
-        function serializeTmpFForPreview(dataList){
-            var d0 = dataList[0];
-            var audioExt = d0.audioName ? getExt(d0.audioName) : 'ogg';
-            var imgExt = d0.imageName ? getExt(d0.imageName) : 'png';
-            var isMulti = dataList.length > 1;
-            var levelField, charterField;
-            if (isMulti) {
-                levelField = JSON.stringify(dataList.map(function(d){ return stripStarSuffix(d.level || '4K'); }));
-                charterField = JSON.stringify(dataList.map(function(d){ return d.charter || 'Unknown'; }));
-            } else {
-                levelField = stripStarSuffix(d0.level || '4K');
-                charterField = d0.charter || 'Unknown';
-            }
-            var keynumField = JSON.stringify(dataList.map(function(d){ return d.keynum || 4; }));
-            var fLines = [
-                'title: '+(d0.title||'Untitled'),
-                'level: '+levelField,
-                'composer: '+(d0.composer||'Unknown'),
-                'charter: '+charterField,
-                'illustrator: '+(d0.illustrator||'UK'),
-                'audio: audio.'+audioExt,
-                'background: bg.'+imgExt,
-                'duration: '+(d0.duration||0),
-                'bpmSegments: '+JSON.stringify(d0.bpmSegments),
-                'offset: '+(d0.offset||0),
-                'keynum: '+keynumField
-            ];
-            return fLines.join('\n');
-        }
-
-        function serializeTmpTForPreview(dataList){
-            return dataList.map(function(d){ return notesToTmpT(d.notes, d.keynum); });
-        }
-
-        function closePreview(){
-            previewOverlay.classList.remove('active');
-            try { previewFrame.src = 'about:blank'; } catch(e){}
-            previewPendingData = null;
-            previewFrameReady = false;
-        }
-
-        async function handlePreviewSave(d){
-            var hadOpen = previewOverlay.classList.contains('active');
-            closePreview();
-            if (!hadOpen) return;
-            if (!d.tmpF || !Array.isArray(d.tmpT) || d.tmpT.length === 0) return;
-            try {
-                var meta = parseTmpFForPreview(d.tmpF);
-                var lv = meta.level, ch = meta.charter, kn = meta.keynum;
-                var base0 = parsedDataList[0] || null;
-                var newList = d.tmpT.map(function(t, i){
-                    var base = parsedDataList[i] || base0;
-                    var level = Array.isArray(lv) ? (lv[i] !== undefined ? lv[i] : lv[0]) : lv;
-                    var charter = Array.isArray(ch) ? (ch[i] !== undefined ? ch[i] : ch[0]) : ch;
-                    var keynum = Array.isArray(kn) ? (kn[i] !== undefined ? kn[i] : 4) : kn;
-                    keynum = parseInt(keynum, 10);
-                    if (isNaN(keynum) || keynum <= 0) keynum = 4;
-                    var lvl = (level === undefined || level === null || level === '') ? (base ? base.level : '4K') : String(level);
-                    return {
-                        type: base ? base.type : '4kz',
-                        title: meta.title || (base ? base.title : 'Untitled'),
-                        level: stripStarSuffix(lvl),
-                        composer: meta.composer || (base ? base.composer : 'Unknown'),
-                        charter: (charter !== undefined && charter !== null && charter !== '') ? String(charter) : (base ? base.charter : 'Unknown'),
-                        illustrator: meta.illustrator || (base ? base.illustrator : 'UK'),
-                        audio: base ? base.audio : '',
-                        background: base ? base.background : '',
-                        duration: base ? base.duration : 0,
-                        bpmSegments: meta.bpmSegments || (base ? base.bpmSegments : []),
-                        hasMultipleBPM: (meta.bpmSegments || []).length > 1,
-                        offset: parseFloat(meta.offset) || 0,
-                        notes: parseTmpTForPreview(t),
-                        audioData: base ? base.audioData : null,
-                        imageData: base ? base.imageData : null,
-                        audioName: base ? base.audioName : '',
-                        imageName: base ? base.imageName : '',
-                        keynum: keynum
-                    };
-                });
-                parsedDataList = newList;
-                applyOsuStarToDataList(parsedDataList);
-                applyMetaToForm(parsedDataList);
-                window.__4kcc_toast('已应用谱面更改');
-            } catch(e) {
-                window.__4kcc_showError('应用更改失败：' + e.message);
-            }
-        }
-
-        previewChartBtn.addEventListener('click', function(){
-            runExclusive(previewChartBtn, async function(){
-                if (parsedDataList.length === 0) { window.__4kcc_showError('请先导入谱面', true); return; }
-                var needConfirm = !!(window.__4kcc_settings.values.noNetwork);
-                if (needConfirm) {
-                    var ok = await window.__4kcc_showConfirm('禁止联网已开启，使用该功能会进行联网，是否确认');
-                    if (!ok) return;
-                }
-                var wasBlocked = !!window.__4kcc_netState.blocked;
-                if (wasBlocked) window.__4kcc_setNoNetwork(false);
-                try {
-                    var resp = await fetch(PREVIEW_BASE + 'versions.txt', { cache: 'no-store' });
-                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                        var ver = (await resp.text()).trim().split(/\r?\n/)[0].trim();
-                        if (!ver) throw new Error('版本号为空');
-                        var url = PREVIEW_BASE + 'chartview-' + ver + '.html';
-
-                    var d0 = parsedDataList[0];
-                    var audioCopy = d0.audioData ? (d0.audioData.slice ? d0.audioData.slice(0) : d0.audioData) : null;
-                    var imageCopy = d0.imageData ? (d0.imageData.slice ? d0.imageData.slice(0) : d0.imageData) : null;
-                    previewPendingData = {
-                        tmpF: serializeTmpFForPreview(parsedDataList),
-                        tmpT: serializeTmpTForPreview(parsedDataList),
-                        audio: audioCopy,
-                        audioName: d0.audioName || '',
-                        image: imageCopy,
-                        imageName: d0.imageName || ''
-                    };
-                    previewFrameReady = false;
-                    previewOverlay.classList.add('active');
-                    previewFrame.src = url;
-                } catch(e) {
-                    window.__4kcc_showError('预览加载失败：' + e.message);
-                } finally {
-                    if (wasBlocked) window.__4kcc_setNoNetwork(true);
-                }
-            });
-        });
-
-        previewCloseBtn.addEventListener('click', function(){
-            closePreview();
-        });
-
-        window.addEventListener('message', function(e){
-            var d = e.data;
-            if (!d || !d.type) return;
-            if (d.type === '4kcc-chartview-ready') {
-                if (!previewOverlay.classList.contains('active')) return;
-                previewFrameReady = true;
-                if (previewPendingData) {
-                    var payload = {
-                        type: '4kcc-chartview',
-                        tmpF: previewPendingData.tmpF,
-                        tmpT: previewPendingData.tmpT,
-                        audioName: previewPendingData.audioName,
-                        imageName: previewPendingData.imageName,
-                        audio: previewPendingData.audio,
-                        image: previewPendingData.image
-                    };
-                    try {
-                        var transfers = [];
-                        if (payload.audio) transfers.push(payload.audio);
-                        if (payload.image) transfers.push(payload.image);
-                        previewFrame.contentWindow.postMessage(payload, '*', transfers);
-                    } catch(err) {
-                        previewFrame.contentWindow.postMessage({
-                            type: '4kcc-chartview',
-                            tmpF: previewPendingData.tmpF,
-                            tmpT: previewPendingData.tmpT,
-                            audioName: previewPendingData.audioName,
-                            imageName: previewPendingData.imageName,
-                            audio: null,
-                            image: null
-                        }, '*');
-                    }
-                }
-            } else if (d.type === '4kcc-chartview-close') {
-                closePreview();
-            } else if (d.type === '4kcc-chartview-save') {
-                handlePreviewSave(d);
-            }
-        });
-
-        /* ============ 文件处理 ============ */
         async function handleFile(file){
             if (fileSpinner) fileSpinner.classList.add('show');
             try{
@@ -4386,46 +3549,21 @@
 
                 if(ext === '4kz'){
                     sourceType = '4kz';
-                    var res = await parse4KZ(zip);
-                    if(!res.list || res.list.length === 0){
-                        var sum4 = formatFailureSummary(res.failures || []);
-                        window.__4kcc_showAlert('无效的 4kz 文件' + (sum4 ? '\n失败原因：' + sum4 : ''));
-                        return;
-                    }
-                    if(res.failures && res.failures.length > 0){
-                        window.__4kcc_toast(res.failures.length + ' 个谱面解析失败，已忽略');
-                    }
-                    if(res.list.length === 1){
-                        parsedDataList = [res.list[0]];
-                        applyOsuStarToDataList(parsedDataList);
-                        applyBackgroundFromData(parsedDataList[0]);
-                        updateMetaHeader();
-                        applyMetaToForm(parsedDataList);
-                        showPage('meta');
-                    } else {
-                        selectedChartData = res.list.map(function(d, i){
-                            return { version: d.level || ('谱面'+(i+1)), _4kzData: d, keynum: d.keynum, is4K: d.keynum === 4 };
-                        });
-                        rawZip = zip;
-                        renderChartList(selectedChartData);
-                        showPage('chartSelect');
-                    }
+                    var data = await parse4KZ(zip);
+                    if(!data) return;
+                    parsedDataList = [data];
+                    updateMetaHeader();
+                    applyMetaToForm(parsedDataList);
+                    showPage('meta');
                     return;
                 }
 
                 if(ext === 'mcz'){
                     sourceType = 'mcz';
-                    var r1 = await scanMCZ(zip);
-                    if(r1.charts.length === 0){
-                        var sum1 = formatFailureSummary(r1.failures);
-                        window.__4kcc_showAlert('未找到有效谱面' + (sum1 ? '\n失败原因：' + sum1 : ''));
-                        return;
-                    }
-                    if(r1.failures.length > 0){
-                        window.__4kcc_toast(r1.failures.length + ' 个文件解析失败，已忽略');
-                    }
-                    selectedChartData = r1.charts; rawZip = zip;
-                    renderChartList(r1.charts);
+                    var charts = await scanMCZ(zip);
+                    if(charts.length===0){ showError('未找到有效的 4K 谱面'); return; }
+                    selectedChartData = charts; rawZip = zip;
+                    renderChartList(charts);
                     showPage('chartSelect');
                     return;
                 } else if(ext === 'pez'){
@@ -4438,17 +3576,10 @@
                     return;
                 } else if(ext === 'osz'){
                     sourceType = 'osz';
-                    var r2 = await scanOSZ(zip);
-                    if(r2.charts.length === 0){
-                        var sum2 = formatFailureSummary(r2.failures);
-                        window.__4kcc_showAlert('未找到有效谱面' + (sum2 ? '\n失败原因：' + sum2 : ''));
-                        return;
-                    }
-                    if(r2.failures.length > 0){
-                        window.__4kcc_toast(r2.failures.length + ' 个文件解析失败，已忽略');
-                    }
-                    selectedChartData = r2.charts; rawZip = zip;
-                    renderChartList(r2.charts);
+                    var charts2 = await scanOSZ(zip);
+                    if(charts2.length===0){ showError('未找到有效的 4K 谱面'); return; }
+                    selectedChartData = charts2; rawZip = zip;
+                    renderChartList(charts2);
                     showPage('chartSelect');
                     return;
                 } else if(ext === 'zip'){
@@ -4484,7 +3615,6 @@
                 else throw new Error('未知的目标格式');
                 showPage('done');
                 doneDesc.textContent = '已下载 ' + resultInfo + '，请确认文件保存后点击下方按钮。';
-                reportConversionCount();
             } catch(err){
                 showError(err.message||'转换失败，请重试');
             } finally {
@@ -4522,30 +3652,16 @@
                 try{
                     var zip = rawZip;
                     if(fmt === 'mcz'){
-                        var r1 = await scanMCZ(zip);
-                        if(r1.charts.length===0){
-                            var sum1 = formatFailureSummary(r1.failures);
-                            window.__4kcc_showAlert('未找到有效谱面' + (sum1 ? '\n失败原因：' + sum1 : ''));
-                            return;
-                        }
-                        if(r1.failures.length > 0){
-                            window.__4kcc_toast(r1.failures.length + ' 个文件解析失败，已忽略');
-                        }
-                        selectedChartData = r1.charts;
-                        renderChartList(r1.charts);
+                        var charts = await scanMCZ(zip);
+                        if(charts.length===0){ showError('未找到有效的 4K 谱面', true); return; }
+                        selectedChartData = charts;
+                        renderChartList(charts);
                         showPage('chartSelect');
                     } else if(fmt === 'osz'){
-                        var r2 = await scanOSZ(zip);
-                        if(r2.charts.length===0){
-                            var sum2 = formatFailureSummary(r2.failures);
-                            window.__4kcc_showAlert('未找到有效谱面' + (sum2 ? '\n失败原因：' + sum2 : ''));
-                            return;
-                        }
-                        if(r2.failures.length > 0){
-                            window.__4kcc_toast(r2.failures.length + ' 个文件解析失败，已忽略');
-                        }
-                        selectedChartData = r2.charts;
-                        renderChartList(r2.charts);
+                        var charts2 = await scanOSZ(zip);
+                        if(charts2.length===0){ showError('未找到有效的 4K 谱面', true); return; }
+                        selectedChartData = charts2;
+                        renderChartList(charts2);
                         showPage('chartSelect');
                     } else if(fmt === 'pez'){
                         isPezParsePending = true;
@@ -4554,31 +3670,13 @@
                         updateParamsPage();
                         showPage('params');
                     } else if(fmt === '4kz'){
-                        var res = await parse4KZ(zip);
-                        if(!res.list || res.list.length === 0){
-                            var sum4 = formatFailureSummary(res.failures || []);
-                            window.__4kcc_showAlert('无效的 4kz 文件' + (sum4 ? '\n失败原因：' + sum4 : ''));
-                            return;
-                        }
-                        if(res.failures && res.failures.length > 0){
-                            window.__4kcc_toast(res.failures.length + ' 个谱面解析失败，已忽略');
-                        }
-                        if(res.list.length === 1){
-                            parsedDataList = [res.list[0]];
-                            applyOsuStarToDataList(parsedDataList);
-                            applyBackgroundFromData(parsedDataList[0]);
-                            sourceType = '4kz';
-                            updateMetaHeader();
-                            applyMetaToForm(parsedDataList);
-                            showPage('meta');
-                        } else {
-                            selectedChartData = res.list.map(function(d, i){
-                                return { version: d.level || ('谱面'+(i+1)), _4kzData: d, keynum: d.keynum, is4K: d.keynum === 4 };
-                            });
-                            sourceType = '4kz';
-                            renderChartList(selectedChartData);
-                            showPage('chartSelect');
-                        }
+                        var data = await parse4KZ(zip);
+                        if(!data) return;
+                        parsedDataList = [data];
+                        sourceType = '4kz';
+                        updateMetaHeader();
+                        applyMetaToForm(parsedDataList);
+                        showPage('meta');
                     } else {
                         window.__4kcc_showError('未知格式');
                     }
@@ -4595,20 +3693,15 @@
                     for (var i = 0; i < selectedIndices.length; i++) {
                         var chart = selectedChartData[selectedIndices[i]];
                         var data;
-                        if(sourceType==='4kz') data = chart._4kzData;
-                        else if(sourceType==='mcz') data = await parseMCZFull(zip, chart);
+                        if(sourceType==='mcz') data = await parseMCZFull(zip, chart);
                         else if(sourceType==='osz') data = await parseOSZFull(zip, chart);
                         else { window.__4kcc_showError('未知来源格式'); return; }
                         if (data) dataList.push(data);
                     }
                     if (dataList.length === 0) return;
                     parsedDataList = dataList;
-                    if (dataList[0] && dataList[0].imageData && dataList[0].imageName !== PLACEHOLDER_NAME) {
-                        window.setBackgroundImage(dataList[0].imageData);
-                    }
                     targetType = (sourceType==='mcz')?'pez':'mcz';
                     updateMetaHeader();
-                    applyOsuStarToDataList(parsedDataList);
                     applyMetaToForm(parsedDataList);
                     showPage('meta');
                 } catch(err){ window.__4kcc_showError('解析失败：' + err.message); }
@@ -4637,12 +3730,8 @@
                         var zip = rawZip || await JSZip.loadAsync(fileBuffer);
                         var data = await parsePEZ(zip, tol, useManual, useManual ? manualVal : 0, fullCapture);
                         if(!data) return;
-                        if (data.imageData && data.imageName !== PLACEHOLDER_NAME) {
-                            window.setBackgroundImage(data.imageData);
-                        }
                         parsedDataList = [data];
                         isPezParsePending = false;
-                        applyOsuStarToDataList(parsedDataList);
                         applyMetaToForm(parsedDataList);
                         showPage('meta');
                     } catch(err){ window.__4kcc_showError('解析失败：' + err.message); }
@@ -4719,6 +3808,7 @@
                     var hashArr = Array.from(new Uint8Array(hashBuf));
                     var hashHex = hashArr.map(function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
                     var shortHash = hashHex.slice(0, 16);
+                    /* 加入时间戳，便于管理曲绘按时间从新到旧排序 */
                     var key = 'background/4kcc_' + Date.now() + '_' + shortHash + '.png';
 
                     var db = await window.__4kcc_openIDB('YuYiTool_Launcher');
@@ -4744,36 +3834,6 @@
                 }
             });
         });
-
-        function handleDoneFile(file){
-            if (!file) return;
-            var ext = getExt(file.name);
-            if (['mcz','pez','osz','zip','4kz'].indexOf(ext) === -1) {
-                window.__4kcc_showError('仅支持 .mcz、.pez、.osz、.zip 或 .4kz 文件');
-                return;
-            }
-            clearFile();
-            handleFile(file);
-        }
-
-        if (doneDropZone && doneFileInput) {
-            doneDropZone.addEventListener('dragover', function(e){ e.preventDefault(); doneDropZone.classList.add('dragover'); });
-            doneDropZone.addEventListener('dragleave', function(){ doneDropZone.classList.remove('dragover'); });
-            doneDropZone.addEventListener('drop', function(e){
-                e.preventDefault();
-                doneDropZone.classList.remove('dragover');
-                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    handleDoneFile(e.dataTransfer.files[0]);
-                }
-            });
-            doneDropZone.addEventListener('click', function(e){
-                if (e.target.tagName !== 'INPUT') doneFileInput.click();
-            });
-            doneFileInput.addEventListener('change', function(){
-                if (doneFileInput.files.length > 0) handleDoneFile(doneFileInput.files[0]);
-                doneFileInput.value = '';
-            });
-        }
 
         if (knownIssuesEntry) {
             knownIssuesEntry.addEventListener('click', function(e){
@@ -4809,11 +3869,40 @@
             }
         }
 
-        settingIdbMainBanner.addEventListener('change', function(){ onSettingToggle('idbMainBanner', this); });
+        settingIdbLib.addEventListener('change', async function(){
+            var el = this;
+            var want = el.checked;
+            if (want) {
+                var hasJsZip = false;
+                try {
+                    var db = await window.__4kcc_openIDB('YuYiTool_Launcher');
+                    if (db && db.objectStoreNames.contains('files')) {
+                        var src = await window.__4kcc_idbGet(db, 'files', 'lib/jszip.js');
+                        if (typeof src === 'string' && src.length > 0) hasJsZip = true;
+                    }
+                    if (db) db.close();
+                } catch(e){}
+                if (!hasJsZip) {
+                    el.checked = false;
+                    window.__4kcc_toast('IDB 中未检测到 jszip，请先点击「下载 jszip.js 到 IDB」');
+                    return;
+                }
+            }
+            await onSettingToggle('idbLib', el);
+            /* 取消 IDB 支持库时，联动关闭禁止联网 */
+            if (!want && !el.checked && window.__4kcc_settings.values.noNetwork) {
+                window.__4kcc_settings.values.noNetwork = false;
+                appSettings.noNetwork = false;
+                window.__4kcc_setNoNetwork(false);
+                if (settingNoNetwork) settingNoNetwork.checked = false;
+                applyIconsByNetwork();
+                loadAdEntry();
+                await window.__4kcc_saveSettings(window.__4kcc_settings.values);
+                window.__4kcc_toast('已关闭禁止联网');
+            }
+        });
 
-        if (settingUseOsuStar) {
-            settingUseOsuStar.addEventListener('change', function(){ onSettingToggle('useOsuStarAsLevel', this); });
-        }
+        settingIdbMainBanner.addEventListener('change', function(){ onSettingToggle('idbMainBanner', this); });
 
         if (settingAutoDim) {
             settingAutoDim.addEventListener('change', function(){
@@ -4861,13 +3950,17 @@
                 }
                 var ok = await window.__4kcc_withSuggestionConfirm();
                 if (!ok) { this.checked = false; return; }
+                if (!window.__4kcc_settings.values.idbLib) {
+                    window.__4kcc_settings.values.idbLib = true;
+                    appSettings.idbLib = true;
+                    if (settingIdbLib) settingIdbLib.checked = true;
+                }
                 window.__4kcc_settings.values.noNetwork = true;
                 appSettings.noNetwork = true;
                 window.__4kcc_setNoNetwork(true);
                 await window.__4kcc_saveSettings(window.__4kcc_settings.values);
                 applyIconsByNetwork();
                 if (adEntryContainer) adEntryContainer.innerHTML = '';
-                if (convertCountLine) convertCountLine.textContent = '已转换谱面次数：—';
                 window.__4kcc_toast('禁止联网已开启');
             } else {
                 window.__4kcc_settings.values.noNetwork = false;
@@ -4876,7 +3969,6 @@
                 await window.__4kcc_saveSettings(window.__4kcc_settings.values);
                 applyIconsByNetwork();
                 loadAdEntry();
-                loadConvertCount();
                 window.__4kcc_toast('已关闭禁止联网');
             }
         });
@@ -4922,6 +4014,7 @@
             });
         });
 
+        /* ================= 管理曲绘 ================= */
         var artworkBlobUrls = [];
 
         async function loadAllArtworkItems(){
@@ -4956,12 +4049,14 @@
                 } catch(e){}
             }
             db.close();
+            /* 从新到旧排序 */
             result.sort(function(a, b){
                 if (a.ts && b.ts) return b.ts - a.ts;
                 if (a.ts) return -1;
                 if (b.ts) return 1;
                 return 0;
             });
+            /* 默认曲绘固定最后 */
             result.push({ key: '__default__', url: window.__4kcc_EMBEDDED_BG, ts: -1, isDefault: true });
             return result;
         }
@@ -5180,7 +4275,7 @@
                 if (e.target.closest('.app-layout')) return;
                 if (eggAlertOpen) return;
                 eggAlertOpen = true;
-                window.__4kcc_showAlert('我本是像素塔最强DJ，因遭人陷害，乐队解散，哥哥背叛，流落街头。今日肯德基疯狂星期四，谁P我50MB助我东山再起，日后必十倍奉还，让你做乐队主唱()').then(function(){
+                window.__4kcc_showAlert('我本是上市集团总裁，因遭人陷害，公司破产，妻子背叛，流落街头。今日肯德基疯狂星期四，谁V我50助我东山再起，日后必十倍奉还，让你做集团副总。').then(function(){
                     eggAlertOpen = false;
                     window.open('https://space.bilibili.com/3546837967440731', '_blank');
                 });
@@ -5336,6 +4431,7 @@
             });
         }
 
+        /* ============ 背景音乐初始化 ============ */
         (function initBgm(){
             if (appSettings.bgm) {
                 BGM.setup();
@@ -5370,7 +4466,6 @@
         footerCredit.style.display = 'block';
         loadAdEntry();
         checkThursdayEgg();
-        loadConvertCount();
     };
 
     if (document.readyState === 'loading') {

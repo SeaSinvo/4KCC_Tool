@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>4KCC-V1.8</title>
+    <title>4KCC-V1.9.2</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         html,body{height:100%;overflow:hidden}
@@ -83,6 +83,10 @@
             font-size:24px;font-weight:600;letter-spacing:1.5px;color:#ffffff;
             background:none;-webkit-text-fill-color:#ffffff;
         }
+        .brand-home .brand-sub{
+            font-size:12px;color:#7a8a9a;margin-top:4px;
+            letter-spacing:0.3px;font-weight:400;
+        }
         .page-header{
             display:flex;align-items:center;justify-content:space-between;
             margin-bottom:16px;flex-shrink:0;
@@ -142,6 +146,7 @@
         .form-group input::placeholder{color:#6a7a8a;}
         .form-group select option{background:#1a1e2e;color:#ffffff;}
         .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+        .split-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
 
         .dropdown{
             position:relative;display:flex;align-items:center;
@@ -155,18 +160,6 @@
         .dropdown .dd-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .dropdown .dd-arrow{color:#7A8A9A;font-size:10px;transition:transform 0.2s;margin-left:8px;}
         .dropdown.open .dd-arrow{transform:rotate(180deg);color:#9cd8e5;}
-        .dropdown .dd-panel{
-            position:absolute;top:calc(100% + 2px);left:0;right:auto;width:100%;
-            background:#1a1e2e;border:1px solid #9cd8e5;
-            z-index:250;display:none;max-height:240px;overflow-y:auto;
-        }
-        .dropdown.open .dd-panel{display:block;}
-        .dropdown .dd-option{
-            padding:7px 14px;font-size:14px;color:#ffffff;
-            cursor:pointer;transition:background 0.15s,color 0.15s;
-        }
-        .dropdown .dd-option:hover{background:rgba(156,216,229,0.15);color:#9cd8e5;}
-        .dropdown .dd-option.selected{background:rgba(156,216,229,0.2);color:#9cd8e5;}
 
         body.dd-open .main-window,
         body.dd-open .pages-wrapper,
@@ -226,6 +219,10 @@
         @keyframes spin{ to{transform:rotate(360deg)} }
         .center-content .title-text{font-size:20px;font-weight:600;color:#ffffff;}
         .center-content .desc-text{font-size:15px;color:#a0a8b0;max-width:400px;}
+
+        #pageDone .center-content{justify-content:flex-start;padding-top:5%;padding-bottom:16px;}
+        .done-drop-zone{flex:0 0 50%;min-height:50%;margin-top:auto;width:80%;max-width:none;padding:20px 16px 16px;}
+        .done-drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 
         .msg-overlay{
             position:absolute;inset:0;
@@ -430,6 +427,27 @@
             padding:40px 0;font-size:14px;
         }
 
+        /* 预览覆盖层：全屏、隐藏标题栏、竖屏自动旋转 90° */
+        #previewOverlay{padding:0;}
+        #previewOverlay .artwork-panel{
+            width:100vw;height:100vh;max-width:100vw;max-height:100vh;
+            border:0;box-shadow:none;position:relative;overflow:hidden;
+        }
+        #previewOverlay .artwork-header{display:none;}
+        #previewFrame{
+            position:absolute;left:50%;top:50%;
+            width:100vw;height:100vh;
+            transform:translate(-50%,-50%);
+            transform-origin:center center;
+            border:0;background:#000;
+        }
+        @media (orientation:portrait){
+            #previewFrame{
+                width:100vh;height:100vw;
+                transform:translate(-50%,-50%) rotate(90deg);
+            }
+        }
+
 @media(max-width:750px){
   .app-layout{width:92vw;height:92vh;max-height:none;gap:12px;flex-direction:column}
   .quick-window{flex:0 0 auto;flex-direction:row;flex-wrap:wrap;gap:6px;padding:10px 12px;height:auto;max-height:32vh;overflow-y:auto;width:100%}
@@ -442,6 +460,7 @@
   .artwork-footer{padding:12px 14px;}
 }
         @media(max-width:500px){
+            .split-row{grid-template-columns:1fr;}
             .main-window{padding:14px;border-radius:0}
             .brand-home .brand-title{font-size:20px}
             .page-header h2{font-size:17px}
@@ -530,7 +549,7 @@
         <div class="quick-window" id="quickWindow">
             <div class="label">快速跳转</div>
             <a href="https://swordalt.github.io/phigros-chart-downloader/" target="_blank" class="quick-link" rel="noopener noreferrer">
-                <img data-src="https://static.wikia.nocookie.net/phigros/images/4/4a/Site-favicon.ico" alt="Phigros" class="link-icon" onerror="this.style.display='none'">
+                <img data-src="https://rhythmarchive.github.io/game-icons/phigros.webp" alt="Phigros" class="link-icon" onerror="this.style.display='none'">
                 <span>浏览 Phigros 谱面</span>
                 <span class="arrow">➤</span>
             </a>
@@ -559,7 +578,10 @@
         </div>
 
         <div class="main-window" id="mainWindow">
-            <div class="brand-home"><div class="brand-title">4K Chart Converter</div></div>
+            <div class="brand-home">
+                <div class="brand-title">4K Chart Converter</div>
+                <div class="brand-sub" id="convertCountLine">已转换谱面次数：—</div>
+            </div>
             <div class="pages-wrapper" id="pagesWrapper">
 
                 <div class="page active" id="pageImport">
@@ -567,7 +589,7 @@
                     <div class="page-body">
                         <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
                             <div class="drop-zone" id="dropZone">
-                                <input type="file" id="fileInput" accept=".mcz,.pez,.osz,.zip,.4kz" />
+                                <input type="file" id="fileInput" accept="application/octet-stream,.mcz,.pez,.osz,.zip,.4kz" />
                                 <div class="primary-text">拖拽到此处，或 <strong>点击浏览</strong></div>
                                 <div class="secondary-text">
                                     <span class="ext-badge">.mcz</span>
@@ -673,7 +695,16 @@
                             <div class="form-group"><label>作曲 (Composer)</label><input type="text" id="editComposer" placeholder="作曲者" /></div>
                             <div class="form-group"><label>谱师 (Charter)</label><input type="text" id="editCharter" placeholder="谱面作者" /></div>
                         </div>
-                        <div class="form-group"><label>画师 (Illustrator)</label><input type="text" id="editIllustrator" placeholder="画师" /><div style="font-size:12px;color:#6a7a8a;margin-top:2px;">默认 UK (Unknown)</div></div>
+                        <div class="form-group">
+                            <label>画师 (Illustrator)</label>
+                            <div class="split-row">
+                                <div>
+                                    <input type="text" id="editIllustrator" placeholder="画师" />
+                                    <div style="font-size:12px;color:#6a7a8a;margin-top:2px;">默认 UK (Unknown)</div>
+                                </div>
+                                <button class="btn btn-primary" id="previewChartBtn" style="padding:10px 14px;font-size:14px;">预览谱面</button>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label>输出格式</label>
                             <div id="editFormat"></div>
@@ -690,6 +721,17 @@
                         <div class="desc-text" id="doneDesc">文件已开始下载，请确认保存后点击下方按钮刷新。</div>
                         <button class="btn btn-success" id="doneRefreshBtn" style="margin-top:8px;">确认下载完成 · 刷新</button>
                         <button class="btn btn-primary" id="addBgBtn" style="margin-top:4px;">将图片加入背景板</button>
+                        <div class="drop-zone done-drop-zone" id="doneDropZone">
+                            <input type="file" id="doneFileInput" accept="application/octet-stream,.mcz,.pez,.osz,.zip,.4kz" />
+                            <div class="primary-text">再转一个</div>
+                            <div class="secondary-text">
+                                <span class="ext-badge">.mcz</span>
+                                <span class="ext-badge">.pez</span>
+                                <span class="ext-badge">.osz</span>
+                                <span class="ext-badge">.zip</span>
+                                <span class="ext-badge">.4kz</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -698,16 +740,16 @@
                     <div class="page-body">
                         <div class="settings-list">
                             <label class="settings-row">
-                                <input type="checkbox" id="settingIdbLib" />
-                                <span>从 IDB 中获取支持库</span>
-                            </label>
-                            <label class="settings-row">
                                 <input type="checkbox" id="settingIdbMainBanner" />
                                 <span>从 IDB 中获取主界面轮播图像</span>
                             </label>
                             <label class="settings-row">
                                 <input type="checkbox" id="settingNoNetwork" />
                                 <span>禁止联网</span>
+                            </label>
+                            <label class="settings-row">
+                                <input type="checkbox" id="settingUseOsuStar" />
+                                <span>使用 OSU mania 星数作为默认难度</span>
                             </label>
                             <label class="settings-row">
                                 <input type="checkbox" id="settingAutoDim" />
@@ -747,6 +789,13 @@
                 <button class="artwork-clear" id="artworkClearAll">清空全部曲绘</button>
                 <button class="artwork-back" id="artworkBack">返回</button>
             </div>
+        </div>
+    </div>
+
+    <div class="artwork-overlay" id="previewOverlay">
+        <div class="artwork-panel">
+            <div class="artwork-header"><span>谱面预览</span></div>
+            <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"></iframe>
         </div>
     </div>
 
@@ -867,10 +916,10 @@
             });
         };
 
-        var DEFAULT_SETTINGS = { idbLib: false, idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true };
+        var DEFAULT_SETTINGS = { idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true, useOsuStarAsLevel: true };
 
         window.__4kcc_settings = {
-            values: { idbLib: false, idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true },
+            values: { idbMainBanner: true, suggestionConfirmed: false, noNetwork: false, autoDim: true, bgm: true, useOsuStarAsLevel: true },
             loaded: false,
             dirty: false
         };
@@ -896,12 +945,12 @@
 
                         var cc = obj['4kcc'] || {};
                         resolve({
-                            idbLib: cc.idbLib !== undefined ? !!cc.idbLib : DEFAULT_SETTINGS.idbLib,
                             idbMainBanner: cc.idbMainBanner !== undefined ? !!cc.idbMainBanner : DEFAULT_SETTINGS.idbMainBanner,
                             suggestionConfirmed: cc.suggestionConfirmed !== undefined ? !!cc.suggestionConfirmed : DEFAULT_SETTINGS.suggestionConfirmed,
                             noNetwork: cc.noNetwork !== undefined ? !!cc.noNetwork : DEFAULT_SETTINGS.noNetwork,
                             autoDim: cc.autoDim !== undefined ? !!cc.autoDim : true,
-                            bgm: cc.bgm !== undefined ? !!cc.bgm : true
+                            bgm: cc.bgm !== undefined ? !!cc.bgm : true,
+                            useOsuStarAsLevel: cc.useOsuStarAsLevel !== undefined ? !!cc.useOsuStarAsLevel : true
                         });
                     } catch(e){
                         console.warn('[4KCC] loadSettings 失败', e);
@@ -939,12 +988,12 @@
                         }
 
                         obj['4kcc'] = {
-                            idbLib: !!values.idbLib,
                             idbMainBanner: !!values.idbMainBanner,
                             suggestionConfirmed: !!values.suggestionConfirmed,
                             noNetwork: !!values.noNetwork,
                             autoDim: values.autoDim !== undefined ? !!values.autoDim : true,
-                            bgm: values.bgm !== undefined ? !!values.bgm : true
+                            bgm: values.bgm !== undefined ? !!values.bgm : true,
+                            useOsuStarAsLevel: values.useOsuStarAsLevel !== undefined ? !!values.useOsuStarAsLevel : true
                         };
 
                         var res = await window.__4kcc_idbPut(db, 'meta', 'info.json', obj);
@@ -1057,6 +1106,197 @@
                 })();
             });
         };
+
+        (function(){
+            var INDIV_DECAY=0.125, OVER_DECAY=0.3, DECAY_WEIGHT=0.9, SECTION=400, DIFF_MULT=0.018;
+            var pow=Math.pow;
+            function applyDecay(v,dt,base){ return v*pow(base,dt/1000.0); }
+            function rte(x){
+                var f=Math.floor(x), d=x-f;
+                if(d>0.5) return f+1;
+                if(d<0.5) return f;
+                return f%2===0?f:f+1;
+            }
+            function osuLegacySort(arr,cmp){
+                function swap(i,j){ if(i!==j){ var t=arr[i]; arr[i]=arr[j]; arr[j]=t; } }
+                function swapIfGreater(a,b){ if(a!==b && cmp(arr[a],arr[b])>0) swap(a,b); }
+                function downHeap(i,n,lo){
+                    while(i<=Math.floor(n/2)){
+                        var child=2*i;
+                        if(child<n && cmp(arr[lo+child-1],arr[lo+child])<0) child+=1;
+                        if(cmp(arr[lo+i-1],arr[lo+child-1])>=0) break;
+                        swap(lo+i-1,lo+child-1); i=child;
+                    }
+                }
+                function heapSort(lo,hi){
+                    var n=hi-lo+1;
+                    for(var i=Math.floor(n/2);i>=1;i--) downHeap(i,n,lo);
+                    for(var i=n;i>=2;i--){ swap(lo,lo+i-1); downHeap(1,i-1,lo); }
+                }
+                function quick(left,right,depth){
+                    while(true){
+                        if(depth===0){ heapSort(left,right); return; }
+                        var i=left,j=right;
+                        var middle=i+((j-i)>>1);
+                        swapIfGreater(i,middle); swapIfGreater(i,j); swapIfGreater(middle,j);
+                        while(true){
+                            while(cmp(arr[i],arr[middle])<0) i+=1;
+                            while(cmp(arr[middle],arr[j])<0) j-=1;
+                            if(i<j) swap(i,j);
+                            else if(i===j){}
+                            else break;
+                            i+=1; j=j>0?j-1:0;
+                            if(i>j) break;
+                        }
+                        depth-=1;
+                        if(Math.max(0,j-left)<=right-i){
+                            if(left<j) quick(left,j,depth);
+                            left=i;
+                        } else {
+                            if(i<right) quick(i,right,depth);
+                            right=j;
+                        }
+                        if(left>=right) break;
+                    }
+                }
+                if(arr.length>=2) quick(0,arr.length-1,32);
+            }
+            function parseOsu(t){
+                var mode=null, cs=5, sec=null, objs=[];
+                var lines=t.split(/\r?\n/);
+                for(var li=0; li<lines.length; li++){
+                    var line=lines[li].trim();
+                    if(!line || line.indexOf('//')===0) continue;
+                    if(line[0]==='['){ sec=line.slice(1,-1).toLowerCase(); continue; }
+                    if(sec==='general'){
+                        var m=/^mode\s*:\s*(\d+)/i.exec(line); if(m) mode=+m[1];
+                    } else if(sec==='difficulty'){
+                        var m=/^circlesize\s*:\s*([\d.]+)/i.exec(line); if(m) cs=+m[1];
+                    } else if(sec==='hitobjects'){
+                        var p=line.split(','); if(p.length<4) continue;
+                        var x=Math.trunc(+p[0]), start=+p[2], type=+p[3];
+                        var end=start;
+                        if(type&128 || type&8){
+                            var ep=p[5]?p[5].split(':')[0]:String(start);
+                            end=Math.max(start,+ep);
+                        }
+                        objs.push({x:x,start:start,end:end});
+                    }
+                }
+                return {mode:mode, cs:cs, objs:objs};
+            }
+            function calcStars(objs,cs){
+                var nObjects=objs.length;
+                if(!nObjects) return null;
+                var total=Math.max(1,rte(cs));
+                var objects=objs.slice();
+                osuLegacySort(objects,function(a,b){ return rte(a.start)-rte(b.start); });
+                var divisor=512/total;
+                for(var oi=0; oi<objects.length; oi++){
+                    var o=objects[oi];
+                    o.col=Math.min(Math.floor(o.x/divisor),total-1);
+                    if(o.col<0) o.col=0;
+                }
+                var maxCombo=0, nHold=0;
+                for(var oi2=0; oi2<objects.length; oi2++){
+                    maxCombo+=1;
+                    var dur=objects[oi2].end-objects[oi2].start;
+                    if(dur>0){ maxCombo+=Math.trunc(dur/100); nHold+=1; }
+                }
+                if(nObjects<2) return {stars:0};
+                var individual=new Array(total).fill(0);
+                var highest=0, overall=1.0, current=0;
+                var sectionPeak=0, sectionEnd=0;
+                var peaks=[];
+                var perColLastStart=new Array(total).fill(null);
+                var prevHit=new Array(total).fill(null);
+                function evalIndividual(c,prev){
+                    var bonus=false;
+                    for(var pi=0; pi<prev.length; pi++){
+                        var p=prev[pi];
+                        if(p && p.end>c.end+1.0 && c.start>p.start+1.0){ bonus=true; break; }
+                    }
+                    return 2.0*(bonus?1.25:1.0);
+                }
+                function evalOverall(c,prev){
+                    var start=c.start, end=c.end;
+                    var overlapping=false;
+                    var closest=Math.abs(end-start);
+                    var holdFactor=1.0, holdAdd=0.0;
+                    for(var pi2=0; pi2<prev.length; pi2++){
+                        var p=prev[pi2];
+                        if(!p) continue;
+                        if(p.end>start+1.0 && end>p.end+1.0 && start>p.start+1.0) overlapping=true;
+                        if(p.end>end+1.0 && start>p.start+1.0) holdFactor=1.25;
+                        var d=Math.abs(end-p.end);
+                        if(d<closest) closest=d;
+                    }
+                    if(overlapping) holdAdd=1.0/(1.0+Math.exp(0.27*(30.0-closest)));
+                    return (1.0+holdAdd)*holdFactor;
+                }
+                for(var i=1; i<objects.length; i++){
+                    var curr=objects[i];
+                    var prev=objects[i-1];
+                    var idx=i-1;
+                    var col=curr.col;
+                    var start=curr.start;
+                    var deltaTime=start-prev.start;
+                    if(idx>0) prevHit[prev.col]=prev;
+                    var prevInCol=perColLastStart[col];
+                    var colStrainTime=prevInCol===null?0:(start-prevInCol);
+                    if(idx===0) sectionEnd=Math.ceil(start/SECTION)*SECTION;
+                    while(start>sectionEnd){
+                        peaks.push(sectionPeak);
+                        var prevStart=idx===0?0.0:prev.start;
+                        sectionPeak=applyDecay(highest,sectionEnd-prevStart,INDIV_DECAY)
+                                   +applyDecay(overall,sectionEnd-prevStart,OVER_DECAY);
+                        sectionEnd+=SECTION;
+                    }
+                    individual[col]=applyDecay(individual[col],colStrainTime,INDIV_DECAY);
+                    individual[col]+=evalIndividual(curr,prevHit);
+                    highest=deltaTime<=1.0?Math.max(highest,individual[col]):individual[col];
+                    overall=applyDecay(overall,deltaTime,OVER_DECAY);
+                    overall+=evalOverall(curr,prevHit);
+                    var c=current*pow(1.0,deltaTime/1000.0);
+                    var sv=(highest+overall)-c;
+                    current=c+sv*1.0;
+                    var strain=current;
+                    if(strain>sectionPeak) sectionPeak=strain;
+                    perColLastStart[col]=start;
+                }
+                peaks.push(sectionPeak);
+                var filt=peaks.filter(function(p){ return p>0.0; });
+                filt.sort(function(a,b){ return b-a; });
+                var diff=0, w=1.0;
+                for(var fi=0; fi<filt.length; fi++){ diff+=filt[fi]*w; w*=DECAY_WEIGHT; }
+                return {stars:diff*DIFF_MULT};
+            }
+            window.__4kcc_calcOsuStar = function(osuContent){
+                try {
+                    var r = parseOsu(String(osuContent || ''));
+                    if (r.mode !== 3) return null;
+                    return formatStars(calcStars(r.objs, r.cs));
+                } catch(e) {
+                    return null;
+                }
+            };
+            window.__4kcc_calcOsuStarRaw = function(objs, cs){
+                try {
+                    if (!objs || objs.length === 0) return null;
+                    return formatStars(calcStars(objs, cs));
+                } catch(e) {
+                    return null;
+                }
+            };
+            function formatStars(res){
+                if (!res || typeof res.stars !== 'number' || !isFinite(res.stars)) return null;
+                var raw = res.stars;
+                if (raw < 0 || raw > 100) return null;
+                var neg = raw < 0;
+                var floored = Math.floor(Math.abs(raw) * 100) / 100;
+                return (neg ? '-' : '') + floored.toFixed(2);
+            }
+        })();
 
         window.__4kcc_hardReload = function(){
             try {
@@ -1176,20 +1416,20 @@
                     window.__4kcc_setNoNetwork(true);
                 }
 
-                var elLib = document.getElementById('settingIdbLib');
                 var elMain = document.getElementById('settingIdbMainBanner');
                 var elNoNet = document.getElementById('settingNoNetwork');
                 var elAutoDim = document.getElementById('settingAutoDim');
                 var elBgm = document.getElementById('settingBgm');
-                if (elLib) elLib.checked = !!settings.idbLib;
+                var elUseOsuStar = document.getElementById('settingUseOsuStar');
                 if (elMain) elMain.checked = !!settings.idbMainBanner;
                 if (elNoNet) elNoNet.checked = !!settings.noNetwork;
                 if (elAutoDim) elAutoDim.checked = !!settings.autoDim;
                 if (elBgm) elBgm.checked = !!settings.bgm;
+                if (elUseOsuStar) elUseOsuStar.checked = !!settings.useOsuStarAsLevel;
 
                 var forceNoNet = !!settings.noNetwork;
                 try {
-                    await window.__4kcc_loadJSZip(!!settings.idbLib || forceNoNet, forceNoNet);
+                    await window.__4kcc_loadJSZip(true, forceNoNet);
                 } catch(e){
                     console.error('[4KCC] JSZip 加载失败', e);
                     window.__4kcc_showAlert('JSZip 加载失败，请检查网络或 IDB 后重试', { reload: true });
@@ -1257,16 +1497,23 @@
         var doneDesc = document.getElementById('doneDesc');
         var doneRefreshBtn = document.getElementById('doneRefreshBtn');
         var addBgBtn = document.getElementById('addBgBtn');
+        var doneDropZone = document.getElementById('doneDropZone');
+        var doneFileInput = document.getElementById('doneFileInput');
+        var convertCountLine = document.getElementById('convertCountLine');
+
+        var previewChartBtn = document.getElementById('previewChartBtn');
+        var previewOverlay = document.getElementById('previewOverlay');
+        var previewFrame = document.getElementById('previewFrame');
 
         var settingsEntry = document.getElementById('settingsEntry');
         var knownIssuesEntry = document.getElementById('knownIssuesEntry');
         var adEntryContainer = document.getElementById('adEntryContainer');
         var settingsConfirmBtn = document.getElementById('settingsConfirmBtn');
-        var settingIdbLib = document.getElementById('settingIdbLib');
         var settingIdbMainBanner = document.getElementById('settingIdbMainBanner');
         var settingNoNetwork = document.getElementById('settingNoNetwork');
         var settingAutoDim = document.getElementById('settingAutoDim');
         var settingBgm = document.getElementById('settingBgm');
+        var settingUseOsuStar = document.getElementById('settingUseOsuStar');
         var downloadJSZipBtn = document.getElementById('downloadJSZipBtn');
         var manageArtworkBtn = document.getElementById('manageArtworkBtn');
         var clearIdbBtn = document.getElementById('clearIdbBtn');
@@ -1291,6 +1538,13 @@
         var TOOL_TEXT = '本谱面使用4KCC转换\n本工具使用DeepSeek编写\n作者:b站SeaSinvo\n严禁进行低创创作';
         var KNOWN_BUGS_TEXT = '暂无';
         var PLANNED_FEATURES_TEXT = '制作谱面预览器';
+        var HIT_URL = 'https://abacus.jasoncameron.dev/hit/seasinvo-github-io/chart-convert-time';
+        var GET_URL = 'https://abacus.jasoncameron.dev/get/seasinvo-github-io/chart-convert-time';
+        var PREVIEW_BASE = 'https://seasinvo.github.io/4KCC_Tool/chartview/';
+
+        /* 预览状态 */
+        var previewPendingData = null;
+        var previewFrameReady = false;
 
         function osuXOf(K, i){
             if (K <= 0) K = 4;
@@ -1839,6 +2093,54 @@
             finally {
                 isBusy = false;
                 if (btn) { btn.disabled = false; btn.textContent = oldText; }
+            }
+        }
+
+        function reportConversionCount(){
+            if (appSettings && appSettings.noNetwork) return;
+            try {
+                if (typeof fetch !== 'function') return;
+                var el = convertCountLine || document.getElementById('convertCountLine');
+                if (el) {
+                    var cur = 0;
+                    var m = el.textContent.match(/(\d+)\s*$/);
+                    if (m) cur = parseInt(m[1], 10) || 0;
+                    el.textContent = '已转换谱面次数：' + (cur + 1);
+                }
+                fetch(HIT_URL).then(function(res){
+                    if (!res.ok) return null;
+                    return res.json();
+                }).then(function(data){
+                    if (!data) return;
+                    if (el && typeof data.value !== 'undefined') {
+                        el.textContent = '已转换谱面次数：' + data.value;
+                    }
+                }).catch(function(){});
+            } catch(e){}
+        }
+
+        function loadConvertCount(){
+            var el = convertCountLine || document.getElementById('convertCountLine');
+            if (!el) return;
+            if (appSettings && appSettings.noNetwork) {
+                el.textContent = '已转换谱面次数：—';
+                return;
+            }
+            try {
+                if (typeof fetch !== 'function') { el.textContent = '已转换谱面次数：—'; return; }
+                fetch(GET_URL).then(function(res){
+                    if (res.status === 404) { el.textContent = '已转换谱面次数：0'; return null; }
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                }).then(function(data){
+                    if (!data) return;
+                    var v = (data && typeof data.value !== 'undefined') ? data.value : '—';
+                    el.textContent = '已转换谱面次数：' + v;
+                }).catch(function(){
+                    el.textContent = '已转换谱面次数：—';
+                });
+            } catch(e) {
+                el.textContent = '已转换谱面次数：—';
             }
         }
 
@@ -2394,7 +2696,7 @@
                 var p=entries[pi];
                 try{
                     var e=zip.files[p]; var c=await e.async('string');
-                    c = c.replace(/^\uFEFF/, ''); // 清除 BOM
+                    c = c.replace(/^\uFEFF/, '');
                     var mm=c.match(/\[General\][\s\S]*?Mode:\s*(\d+)/i);
                     var cs=c.match(/\[Difficulty\][\s\S]*?CircleSize:\s*([\d.]+)/i);
                     var mode=mm?parseInt(mm[1]):-1;
@@ -3200,6 +3502,12 @@
 
             if(finalNotes.length===0){ showError('所有音符皆无法分配或冲突'); return null; }
 
+            finalNotes.sort(function(a, b){
+                var sa = a.start[0] + a.start[1] / (a.start[2] || 1);
+                var sb = b.start[0] + b.start[1] / (b.start[2] || 1);
+                return sa - sb;
+            });
+
             return {
                 type: 'pez',
                 title: title, level: level,
@@ -3753,6 +4061,80 @@
             updateChartItemStyles();
         });
 
+        function buildStarInputFromInternal(dataList, index){
+            var d0 = dataList[0];
+            var bpmSegments = d0.bpmSegments.map(function(s){
+                return { beat: s.beat.slice(), bpm: (s.bpm && s.bpm > 0) ? s.bpm : 120 };
+            });
+            var offset = parseFloat(d0.offset) || 0;
+
+            var sp = 0;
+            for (var i = 0; i < bpmSegments.length; i++) {
+                if (i === 0) { bpmSegments[i].sp = 0; }
+                else {
+                    var prevBeat = bpmSegments[i-1].beat[0] + bpmSegments[i-1].beat[1] / (bpmSegments[i-1].beat[2] || 1);
+                    var curBeat = bpmSegments[i].beat[0] + bpmSegments[i].beat[1] / (bpmSegments[i].beat[2] || 1);
+                    var msPerBeat = 60000 / bpmSegments[i-1].bpm;
+                    sp += (curBeat - prevBeat) * msPerBeat;
+                    bpmSegments[i].sp = sp;
+                }
+            }
+
+            function beatToMs(beatArr){
+                var beat = beatArr[0] + beatArr[1] / (beatArr[2] || 1);
+                var idx = -1;
+                for (var bi = bpmSegments.length - 1; bi >= 0; bi--) {
+                    var segBeat = bpmSegments[bi].beat[0] + bpmSegments[bi].beat[1] / (bpmSegments[bi].beat[2] || 1);
+                    if (segBeat <= beat + 1e-9) { idx = bi; break; }
+                }
+                if (idx === -1) idx = 0;
+                var seg = bpmSegments[idx];
+                var segBeat = seg.beat[0] + seg.beat[1] / (seg.beat[2] || 1);
+                var msPerBeat = 60000 / seg.bpm;
+                var pureMs = seg.sp + (beat - segBeat) * msPerBeat;
+                return pureMs + offset;
+            }
+
+            var data = dataList[index];
+            var kn = data.keynum || 4;
+            if (kn <= 0) kn = 4;
+            var objs = [];
+            for (var ni = 0; ni < data.notes.length; ni++) {
+                var n = data.notes[ni];
+                if (n.column >= kn) continue;
+                var startMs = beatToMs(n.start);
+                var x = osuXOf(kn, n.column);
+                var endMs = startMs;
+                if (n.type === 2) {
+                    endMs = beatToMs(n.end);
+                }
+                objs.push({x: x, start: startMs, end: endMs});
+            }
+            return { objs: objs, cs: kn };
+        }
+
+        function stripStarSuffix(level){
+            return String(level || '').replace(/\s*\[★[\d.]+\]\s*$/, '');
+        }
+
+        function applyOsuStarToDataList(dataList){
+            if (!window.__4kcc_settings || !window.__4kcc_settings.values || !window.__4kcc_settings.values.useOsuStarAsLevel) return;
+            if (!dataList || dataList.length === 0) return;
+            for (var di = 0; di < dataList.length; di++) {
+                var d = dataList[di];
+                if (!d || !d.notes || !d.bpmSegments) continue;
+                try {
+                    var input = buildStarInputFromInternal(dataList, di);
+                    if (!input || !input.objs || input.objs.length === 0) continue;
+                    var star = window.__4kcc_calcOsuStarRaw(input.objs, input.cs);
+                    if (typeof star === 'string' && star.length > 0) {
+                        var orig = stripStarSuffix(d.level || '');
+                        d.level = orig + '[★' + star + ']';
+                    }
+                } catch(e) {}
+            }
+        }
+
         function applyMetaToForm(dataList){
             var d = dataList[0];
             editTitle.value = d.title || '';
@@ -3783,6 +4165,188 @@
             }
         }
 
+        /* ============ 预览功能 ============ */
+        function parseTmpFForPreview(text){
+            var o = {};
+            text.split('\n').forEach(function(line){
+                var i = line.indexOf(':');
+                if (i < 0) return;
+                var k = line.slice(0, i).trim(), v = line.slice(i + 1).trim();
+                if (k === 'bpmSegments' || k === 'charter' || k === 'level' || k === 'keynum') {
+                    try { o[k] = JSON.parse(v); } catch(e){ o[k] = v; }
+                } else o[k] = v;
+            });
+            return o;
+        }
+        function parseTmpTForPreview(text){
+            var out = [];
+            text.split('\n').forEach(function(line){
+                line = line.trim(); if (!line) return;
+                var p = line.split('-');
+                if (p.length !== 4) return;
+                var st = p[0].split(',').map(Number);
+                var en = p[1].split(',').map(Number);
+                var col = parseInt(p[2], 10), type = parseInt(p[3], 10);
+                if (isNaN(col) || isNaN(type)) return;
+                out.push({ start: st, end: en, column: col, type: type });
+            });
+            return out;
+        }
+
+        function serializeTmpFForPreview(dataList){
+            var d0 = dataList[0];
+            var audioExt = d0.audioName ? getExt(d0.audioName) : 'ogg';
+            var imgExt = d0.imageName ? getExt(d0.imageName) : 'png';
+            var isMulti = dataList.length > 1;
+            var levelField, charterField;
+            if (isMulti) {
+                levelField = JSON.stringify(dataList.map(function(d){ return stripStarSuffix(d.level || '4K'); }));
+                charterField = JSON.stringify(dataList.map(function(d){ return d.charter || 'Unknown'; }));
+            } else {
+                levelField = stripStarSuffix(d0.level || '4K');
+                charterField = d0.charter || 'Unknown';
+            }
+            var keynumField = JSON.stringify(dataList.map(function(d){ return d.keynum || 4; }));
+            var fLines = [
+                'title: '+(d0.title||'Untitled'),
+                'level: '+levelField,
+                'composer: '+(d0.composer||'Unknown'),
+                'charter: '+charterField,
+                'illustrator: '+(d0.illustrator||'UK'),
+                'audio: audio.'+audioExt,
+                'background: bg.'+imgExt,
+                'duration: '+(d0.duration||0),
+                'bpmSegments: '+JSON.stringify(d0.bpmSegments),
+                'offset: '+(d0.offset||0),
+                'keynum: '+keynumField
+            ];
+            return fLines.join('\n');
+        }
+
+        function serializeTmpTForPreview(dataList){
+            return dataList.map(function(d){ return notesToTmpT(d.notes, d.keynum); });
+        }
+
+        function closePreview(){
+            previewOverlay.classList.remove('active');
+            try { previewFrame.src = 'about:blank'; } catch(e){}
+            previewPendingData = null;
+            previewFrameReady = false;
+        }
+
+        function handlePreviewSave(d){
+            closePreview();
+            if (!d.tmpF || !Array.isArray(d.tmpT) || d.tmpT.length === 0) return;
+            try {
+                var meta = parseTmpFForPreview(d.tmpF);
+                var lv = meta.level, ch = meta.charter, kn = meta.keynum;
+                var base0 = parsedDataList[0] || null;
+                var newList = d.tmpT.map(function(t, i){
+                    var base = parsedDataList[i] || base0;
+                    var level = Array.isArray(lv) ? (lv[i] !== undefined ? lv[i] : lv[0]) : lv;
+                    var charter = Array.isArray(ch) ? (ch[i] !== undefined ? ch[i] : ch[0]) : ch;
+                    var keynum = Array.isArray(kn) ? (kn[i] !== undefined ? kn[i] : 4) : kn;
+                    keynum = parseInt(keynum, 10);
+                    if (isNaN(keynum) || keynum <= 0) keynum = 4;
+                    var lvl = (level === undefined || level === null || level === '') ? (base ? base.level : '4K') : String(level);
+                    return {
+                        type: base ? base.type : '4kz',
+                        title: meta.title || (base ? base.title : 'Untitled'),
+                        level: stripStarSuffix(lvl),
+                        composer: meta.composer || (base ? base.composer : 'Unknown'),
+                        charter: (charter !== undefined && charter !== null && charter !== '') ? String(charter) : (base ? base.charter : 'Unknown'),
+                        illustrator: meta.illustrator || (base ? base.illustrator : 'UK'),
+                        audio: base ? base.audio : '',
+                        background: base ? base.background : '',
+                        duration: base ? base.duration : 0,
+                        bpmSegments: meta.bpmSegments || (base ? base.bpmSegments : []),
+                        hasMultipleBPM: (meta.bpmSegments || []).length > 1,
+                        offset: parseFloat(meta.offset) || 0,
+                        notes: parseTmpTForPreview(t),
+                        audioData: base ? base.audioData : null,
+                        imageData: base ? base.imageData : null,
+                        audioName: base ? base.audioName : '',
+                        imageName: base ? base.imageName : '',
+                        keynum: keynum
+                    };
+                });
+                parsedDataList = newList;
+                applyOsuStarToDataList(parsedDataList);
+                applyMetaToForm(parsedDataList);
+                window.__4kcc_toast('已应用谱面更改');
+            } catch(e) {
+                window.__4kcc_showError('应用更改失败：' + e.message);
+            }
+        }
+
+        previewChartBtn.addEventListener('click', function(){
+            runExclusive(previewChartBtn, async function(){
+                if (parsedDataList.length === 0) { window.__4kcc_showError('请先导入谱面', true); return; }
+                var needConfirm = !!(window.__4kcc_settings.values.noNetwork);
+                if (needConfirm) {
+                    var ok = await window.__4kcc_showConfirm('禁止联网已开启，使用该功能会进行联网，是否确认');
+                    if (!ok) return;
+                }
+                var wasBlocked = !!window.__4kcc_netState.blocked;
+                if (wasBlocked) window.__4kcc_setNoNetwork(false);
+                try {
+                    var resp = await fetch(PREVIEW_BASE + 'versions.txt', { cache: 'no-store' });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    var ver = (await resp.text()).trim().split(/\r?\n/)[0].trim();
+                    if (!ver) throw new Error('版本号为空');
+                    var url = PREVIEW_BASE + 'chartview-' + ver + '.html';
+
+                    var d0 = parsedDataList[0];
+                    var audioCopy = d0.audioData ? (d0.audioData.slice ? d0.audioData.slice(0) : d0.audioData) : null;
+                    var imageCopy = d0.imageData ? (d0.imageData.slice ? d0.imageData.slice(0) : d0.imageData) : null;
+                    previewPendingData = {
+                        tmpF: serializeTmpFForPreview(parsedDataList),
+                        tmpT: serializeTmpTForPreview(parsedDataList),
+                        audio: audioCopy,
+                        audioName: d0.audioName || '',
+                        image: imageCopy,
+                        imageName: d0.imageName || ''
+                    };
+                    previewFrameReady = false;
+                    previewOverlay.classList.add('active');
+                    previewFrame.src = url;
+                } catch(e) {
+                    window.__4kcc_showError('预览加载失败：' + e.message);
+                } finally {
+                    if (wasBlocked) window.__4kcc_setNoNetwork(true);
+                }
+            });
+        });
+
+        window.addEventListener('message', function(e){
+            var d = e.data;
+            if (!d || !d.type) return;
+            if (d.type === '4kcc-chartview-ready') {
+                if (!previewOverlay.classList.contains('active')) return;
+                previewFrameReady = true;
+                if (previewPendingData) {
+                    try {
+                        previewFrame.contentWindow.postMessage({
+                            type: '4kcc-chartview',
+                            tmpF: previewPendingData.tmpF,
+                            tmpT: previewPendingData.tmpT,
+                            audioName: previewPendingData.audioName,
+                            imageName: previewPendingData.imageName,
+                            audio: previewPendingData.audio,
+                            image: previewPendingData.image
+                        }, '*');
+                    } catch(err) {
+                        window.__4kcc_showError('预览数据发送失败：' + (err.message || '未知错误'));
+                    }
+                }
+            } else if (d.type === '4kcc-chartview-close') {
+                closePreview();
+            } else if (d.type === '4kcc-chartview-save') {
+                handlePreviewSave(d);
+            }
+        });
+
+        /* ============ 文件处理 ============ */
         async function handleFile(file){
             if (fileSpinner) fileSpinner.classList.add('show');
             try{
@@ -3807,6 +4371,7 @@
                     }
                     if(res.list.length === 1){
                         parsedDataList = [res.list[0]];
+                        applyOsuStarToDataList(parsedDataList);
                         applyBackgroundFromData(parsedDataList[0]);
                         updateMetaHeader();
                         applyMetaToForm(parsedDataList);
@@ -3893,6 +4458,7 @@
                 else throw new Error('未知的目标格式');
                 showPage('done');
                 doneDesc.textContent = '已下载 ' + resultInfo + '，请确认文件保存后点击下方按钮。';
+                reportConversionCount();
             } catch(err){
                 showError(err.message||'转换失败，请重试');
             } finally {
@@ -3973,6 +4539,7 @@
                         }
                         if(res.list.length === 1){
                             parsedDataList = [res.list[0]];
+                            applyOsuStarToDataList(parsedDataList);
                             applyBackgroundFromData(parsedDataList[0]);
                             sourceType = '4kz';
                             updateMetaHeader();
@@ -4015,6 +4582,7 @@
                     }
                     targetType = (sourceType==='mcz')?'pez':'mcz';
                     updateMetaHeader();
+                    applyOsuStarToDataList(parsedDataList);
                     applyMetaToForm(parsedDataList);
                     showPage('meta');
                 } catch(err){ window.__4kcc_showError('解析失败：' + err.message); }
@@ -4048,6 +4616,7 @@
                         }
                         parsedDataList = [data];
                         isPezParsePending = false;
+                        applyOsuStarToDataList(parsedDataList);
                         applyMetaToForm(parsedDataList);
                         showPage('meta');
                     } catch(err){ window.__4kcc_showError('解析失败：' + err.message); }
@@ -4150,6 +4719,36 @@
             });
         });
 
+        function handleDoneFile(file){
+            if (!file) return;
+            var ext = getExt(file.name);
+            if (['mcz','pez','osz','zip','4kz'].indexOf(ext) === -1) {
+                window.__4kcc_showError('仅支持 .mcz、.pez、.osz、.zip 或 .4kz 文件');
+                return;
+            }
+            clearFile();
+            handleFile(file);
+        }
+
+        if (doneDropZone && doneFileInput) {
+            doneDropZone.addEventListener('dragover', function(e){ e.preventDefault(); doneDropZone.classList.add('dragover'); });
+            doneDropZone.addEventListener('dragleave', function(){ doneDropZone.classList.remove('dragover'); });
+            doneDropZone.addEventListener('drop', function(e){
+                e.preventDefault();
+                doneDropZone.classList.remove('dragover');
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleDoneFile(e.dataTransfer.files[0]);
+                }
+            });
+            doneDropZone.addEventListener('click', function(e){
+                if (e.target.tagName !== 'INPUT') doneFileInput.click();
+            });
+            doneFileInput.addEventListener('change', function(){
+                if (doneFileInput.files.length > 0) handleDoneFile(doneFileInput.files[0]);
+                doneFileInput.value = '';
+            });
+        }
+
         if (knownIssuesEntry) {
             knownIssuesEntry.addEventListener('click', function(e){
                 e.preventDefault();
@@ -4184,39 +4783,11 @@
             }
         }
 
-        settingIdbLib.addEventListener('change', async function(){
-            var el = this;
-            var want = el.checked;
-            if (want) {
-                var hasJsZip = false;
-                try {
-                    var db = await window.__4kcc_openIDB('YuYiTool_Launcher');
-                    if (db && db.objectStoreNames.contains('files')) {
-                        var src = await window.__4kcc_idbGet(db, 'files', 'lib/jszip.js');
-                        if (typeof src === 'string' && src.length > 0) hasJsZip = true;
-                    }
-                    if (db) db.close();
-                } catch(e){}
-                if (!hasJsZip) {
-                    el.checked = false;
-                    window.__4kcc_toast('IDB 中未检测到 jszip，请先点击「下载 jszip.js 到 IDB」');
-                    return;
-                }
-            }
-            await onSettingToggle('idbLib', el);
-            if (!want && !el.checked && window.__4kcc_settings.values.noNetwork) {
-                window.__4kcc_settings.values.noNetwork = false;
-                appSettings.noNetwork = false;
-                window.__4kcc_setNoNetwork(false);
-                if (settingNoNetwork) settingNoNetwork.checked = false;
-                applyIconsByNetwork();
-                loadAdEntry();
-                await window.__4kcc_saveSettings(window.__4kcc_settings.values);
-                window.__4kcc_toast('已关闭禁止联网');
-            }
-        });
-
         settingIdbMainBanner.addEventListener('change', function(){ onSettingToggle('idbMainBanner', this); });
+
+        if (settingUseOsuStar) {
+            settingUseOsuStar.addEventListener('change', function(){ onSettingToggle('useOsuStarAsLevel', this); });
+        }
 
         if (settingAutoDim) {
             settingAutoDim.addEventListener('change', function(){
@@ -4264,17 +4835,13 @@
                 }
                 var ok = await window.__4kcc_withSuggestionConfirm();
                 if (!ok) { this.checked = false; return; }
-                if (!window.__4kcc_settings.values.idbLib) {
-                    window.__4kcc_settings.values.idbLib = true;
-                    appSettings.idbLib = true;
-                    if (settingIdbLib) settingIdbLib.checked = true;
-                }
                 window.__4kcc_settings.values.noNetwork = true;
                 appSettings.noNetwork = true;
                 window.__4kcc_setNoNetwork(true);
                 await window.__4kcc_saveSettings(window.__4kcc_settings.values);
                 applyIconsByNetwork();
                 if (adEntryContainer) adEntryContainer.innerHTML = '';
+                if (convertCountLine) convertCountLine.textContent = '已转换谱面次数：—';
                 window.__4kcc_toast('禁止联网已开启');
             } else {
                 window.__4kcc_settings.values.noNetwork = false;
@@ -4283,6 +4850,7 @@
                 await window.__4kcc_saveSettings(window.__4kcc_settings.values);
                 applyIconsByNetwork();
                 loadAdEntry();
+                loadConvertCount();
                 window.__4kcc_toast('已关闭禁止联网');
             }
         });
@@ -4586,7 +5154,7 @@
                 if (e.target.closest('.app-layout')) return;
                 if (eggAlertOpen) return;
                 eggAlertOpen = true;
-                window.__4kcc_showAlert('我本是上市集团总裁，因遭人陷害，公司破产，妻子背叛，流落街头。今日肯德基疯狂星期四，谁V我50助我东山再起，日后必十倍奉还，让你做集团副总。').then(function(){
+                window.__4kcc_showAlert('我本是像素塔最强DJ，因遭人陷害，乐队解散，哥哥背叛，流落街头。今日肯德基疯狂星期四，谁P我50MB助我东山再起，日后必十倍奉还，让你做乐队主唱()').then(function(){
                     eggAlertOpen = false;
                     window.open('https://space.bilibili.com/3546837967440731', '_blank');
                 });
@@ -4776,6 +5344,7 @@
         footerCredit.style.display = 'block';
         loadAdEntry();
         checkThursdayEgg();
+        loadConvertCount();
     };
 
     if (document.readyState === 'loading') {

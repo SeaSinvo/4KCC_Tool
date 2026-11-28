@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>4KCC-V1.7.1</title>
+    <title>4KCC-V1.8</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         html,body{height:100%;overflow:hidden}
@@ -168,7 +168,6 @@
         .dropdown .dd-option:hover{background:rgba(156,216,229,0.15);color:#9cd8e5;}
         .dropdown .dd-option.selected{background:rgba(156,216,229,0.2);color:#9cd8e5;}
 
-        /* 下拉打开时让祖先 overflow:visible，面板不被裁剪 */
         body.dd-open .main-window,
         body.dd-open .pages-wrapper,
         body.dd-open .page,
@@ -335,7 +334,8 @@
         .chart-item input[type="checkbox"]{
             width:16px;height:16px;accent-color:#9cd8e5;cursor:pointer;flex-shrink:0;
         }
-        .chart-item span{font-size:14px;color:#ffffff;}
+        .chart-item .chart-label{font-size:14px;color:#ffffff;flex:1;}
+        .chart-item .chart-keynum{font-size:11px;color:#9cd8e5;flex-shrink:0;}
 
         .settings-list{display:flex;flex-direction:column;gap:14px;}
         .settings-row{
@@ -359,7 +359,6 @@
         }
         .settings-action.danger-action:hover{background:#e07a7a;}
 
-        /* 管理曲绘覆盖层 */
         .artwork-overlay{
             position:fixed;inset:0;z-index:300;
             background:rgba(0,0,0,0.92);
@@ -480,6 +479,39 @@
         @media(max-width:750px){
             .top-refresh-btn{top:8px;left:8px;width:32px;height:32px;}
         }
+        .dd-modal-overlay{
+            position:fixed;inset:0;z-index:480;
+            background:rgba(0,0,0,0.72);
+            backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+            display:none;align-items:center;justify-content:center;
+            padding:40px;
+        }
+        .dd-modal-overlay.active{display:flex;}
+        .dd-modal-dialog{
+            width:320px;max-width:100%;max-height:70vh;
+            background:rgba(38,46,62,0.97);
+            border:1px solid rgba(255,255,255,0.12);
+            box-shadow:0 20px 60px rgba(0,0,0,0.8);
+            display:flex;flex-direction:column;
+            animation:msgIn 0.18s ease-out;
+        }
+        .dd-modal-header{
+            padding:14px 18px;font-size:14px;font-weight:600;color:#ffffff;
+            border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;
+        }
+        .dd-modal-list{overflow-y:auto;padding:6px 0;}
+        .dd-modal-list::-webkit-scrollbar{width:4px;}
+        .dd-modal-list::-webkit-scrollbar-track{background:transparent;}
+        .dd-modal-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);}
+        .dd-modal-option{
+            padding:11px 18px;font-size:14px;color:#ffffff;cursor:pointer;
+            transition:background 0.15s,color 0.15s;
+        }
+        .dd-modal-option:hover{background:rgba(156,216,229,0.15);color:#9cd8e5;}
+        .dd-modal-option.selected{background:rgba(156,216,229,0.2);color:#9cd8e5;}
+        @media(max-width:750px){
+            .dd-modal-overlay{padding:16px;}
+        }
     </style>
 </head>
 <body>
@@ -572,12 +604,12 @@
                     <div class="page-header"><h2>选择谱面</h2></div>
                     <div class="page-body">
                         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:20px;">
-                            <div style="text-align:center;color:#a0a8b0;font-size:15px;">检测到多个 4K 谱面，请选择要转换的版本：</div>
+                            <div style="text-align:center;color:#a0a8b0;font-size:15px;">检测到多个谱面，请选择要转换的版本：</div>
                             <div class="chart-list" id="chartList"></div>
                         </div>
                     </div>
                     <div class="page-footer">
-                        <button class="btn btn-primary" id="multiToggleBtn">开启多选</button>
+                        <button class="btn btn-primary" id="multiToggleBtn">查看全部定轨谱面</button>
                         <button class="btn btn-primary" id="chartSelectConfirm">确认并继续 →</button>
                     </div>
                 </div>
@@ -695,16 +727,15 @@
                         <button class="btn btn-primary" id="settingsConfirmBtn">确认</button>
                     </div>
                 </div>
-
-                <div class="msg-overlay" id="msgOverlay">
-                    <div class="msg-dialog">
-                        <div class="msg-text" id="msgText"></div>
-                        <div class="msg-actions" id="msgActions"></div>
-                    </div>
-                </div>
-
             </div>
             <div class="footer-credit" id="footerCredit" title="前往作者主页">本工具使用DeepSeek编写 · 作者:b站SeaSinvo · 严禁进行低创创作</div>
+        </div>
+    </div>
+
+    <div class="msg-overlay" id="msgOverlay">
+        <div class="msg-dialog">
+            <div class="msg-text" id="msgText"></div>
+            <div class="msg-actions" id="msgActions"></div>
         </div>
     </div>
 
@@ -1252,16 +1283,25 @@
         var sourceType = '', targetType = '';
         var selectedChartData = null, rawZip = null;
         var isPezParsePending = false;
-        var isMultiMode = false;
+        var chartViewAll = false;
         var selectedIndices = [];
         var isBusy = false;
         var PLACEHOLDER_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
         var PLACEHOLDER_NAME = '_placeholder.png';
-        var TOOL_TEXT = '本工具使用DeepSeek编写\n作者:b站SeaSinvo\n严禁进行低创创作';
+        var TOOL_TEXT = '本谱面使用4KCC转换\n本工具使用DeepSeek编写\n作者:b站SeaSinvo\n严禁进行低创创作';
         var KNOWN_BUGS_TEXT = '暂无';
         var PLANNED_FEATURES_TEXT = '制作谱面预览器';
 
-        /* ============ 背景音乐（Web Audio 合成，循环播放） ============ */
+        function osuXOf(K, i){
+            if (K <= 0) K = 4;
+            return Math.floor(512 / K * (i + 0.5));
+        }
+        function pezXOf(K, i, N){
+            if (K <= 1) return 0;
+            return (i / (K - 1) * 2 - 1) * N;
+        }
+
+        /* BGM 数据 */
         var BGM_PACKED = `418,67,41
 430,70,50
 208,67,52
@@ -1610,7 +1650,7 @@
         };
 
         /* ============ 下拉框 ============ */
-        function createDropdown(container, options){
+        function createDropdown(container, options, title){
             container.classList.add('dropdown');
             container.innerHTML = '';
             var state = { value: options[0] ? options[0].value : '' };
@@ -1620,25 +1660,10 @@
             var arrowEl = document.createElement('span');
             arrowEl.className = 'dd-arrow';
             arrowEl.textContent = '▼';
-            var panelEl = document.createElement('div');
-            panelEl.className = 'dd-panel';
-
-            options.forEach(function(opt){
-                var item = document.createElement('div');
-                item.className = 'dd-option';
-                item.textContent = opt.label;
-                item.dataset.value = opt.value;
-                item.addEventListener('click', function(e){
-                    e.stopPropagation();
-                    setValue(opt.value);
-                    closeDD();
-                });
-                panelEl.appendChild(item);
-            });
-
             container.appendChild(textEl);
             container.appendChild(arrowEl);
-            container.appendChild(panelEl);
+
+            var overlay = null;
 
             function updateDisplay(){
                 var opt = null;
@@ -1646,10 +1671,6 @@
                     if (options[i].value === state.value) { opt = options[i]; break; }
                 }
                 textEl.textContent = opt ? opt.label : (options[0] ? options[0].label : '');
-                Array.prototype.forEach.call(panelEl.children, function(item){
-                    if (item.dataset.value === state.value) item.classList.add('selected');
-                    else item.classList.remove('selected');
-                });
             }
 
             function setValue(v){
@@ -1657,29 +1678,71 @@
                 updateDisplay();
             }
 
-            function closeDD(){
-                container.classList.remove('open');
-                if (!document.querySelector('.dropdown.open')) {
-                    document.body.classList.remove('dd-open');
-                }
+            function buildOverlay(){
+                overlay = document.createElement('div');
+                overlay.className = 'dd-modal-overlay';
+
+                var dialog = document.createElement('div');
+                dialog.className = 'dd-modal-dialog';
+
+                var header = document.createElement('div');
+                header.className = 'dd-modal-header';
+                header.textContent = title || '请选择';
+                dialog.appendChild(header);
+
+                var list = document.createElement('div');
+                list.className = 'dd-modal-list';
+                options.forEach(function(opt){
+                    var item = document.createElement('div');
+                    item.className = 'dd-modal-option';
+                    item.textContent = opt.label;
+                    item.dataset.value = opt.value;
+                    item.addEventListener('click', function(e){
+                        e.stopPropagation();
+                        setValue(opt.value);
+                        closeModal();
+                    });
+                    list.appendChild(item);
+                });
+                dialog.appendChild(list);
+                overlay.appendChild(dialog);
+
+                overlay.addEventListener('click', function(e){
+                    if (e.target === overlay) closeModal();
+                });
+                document.body.appendChild(overlay);
             }
 
-            container._closeDD = closeDD;
+            function refreshSelected(){
+                if (!overlay) return;
+                Array.prototype.forEach.call(overlay.querySelectorAll('.dd-modal-option'), function(item){
+                    if (item.dataset.value === state.value) item.classList.add('selected');
+                    else item.classList.remove('selected');
+                });
+            }
+
+            function onKeyDown(e){
+                if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+            }
+
+            function openModal(){
+                if (!overlay) buildOverlay();
+                refreshSelected();
+                overlay.classList.add('active');
+                document.addEventListener('keydown', onKeyDown);
+            }
+
+            function closeModal(){
+                if (!overlay) return;
+                overlay.classList.remove('active');
+                document.removeEventListener('keydown', onKeyDown);
+            }
+
+            container._closeDD = closeModal;
 
             container.addEventListener('click', function(e){
                 e.stopPropagation();
-                if (container.classList.contains('open')) {
-                    closeDD();
-                } else {
-                    document.querySelectorAll('.dropdown.open').forEach(function(d){
-                        if (d !== container) {
-                            d.classList.remove('open');
-                            if (d._closeDD) d._closeDD();
-                        }
-                    });
-                    container.classList.add('open');
-                    document.body.classList.add('dd-open');
-                }
+                openModal();
             });
 
             updateDisplay();
@@ -1698,7 +1761,7 @@
             { value: 'mcz', label: 'mcz (Malody)' },
             { value: 'osz', label: 'osz (osu!mania)' },
             { value: '4kz', label: '4kz (4KCC)' }
-        ]);
+        ], '选择谱面格式');
 
         var editFormat = createDropdown(document.getElementById('editFormat'), [
             { value: '', label: '— 请选择 —' },
@@ -1706,7 +1769,7 @@
             { value: 'mcz', label: 'mcz (Malody)' },
             { value: 'osz', label: 'osz (osu!mania)' },
             { value: '4kz', label: '4kz (4KCC)' }
-        ]);
+        ], '选择输出格式');
 
         document.addEventListener('click', function(){
             document.querySelectorAll('.dropdown.open').forEach(function(d){
@@ -1777,6 +1840,21 @@
                 isBusy = false;
                 if (btn) { btn.disabled = false; btn.textContent = oldText; }
             }
+        }
+
+        function formatFailureSummary(failures){
+            if(!failures || failures.length === 0) return '';
+            var counts = { json_parse:0, missing_meta:0, not_mania:0, read_error:0 };
+            for(var i=0;i<failures.length;i++){
+                var r = failures[i].reason;
+                if(counts[r] !== undefined) counts[r]++; else counts.read_error++;
+            }
+            var parts = [];
+            if(counts.json_parse) parts.push(counts.json_parse + ' 个解析失败');
+            if(counts.missing_meta) parts.push(counts.missing_meta + ' 个元数据缺失');
+            if(counts.not_mania) parts.push(counts.not_mania + ' 个非目标模式');
+            if(counts.read_error) parts.push(counts.read_error + ' 个读取失败');
+            return parts.join('、');
         }
 
         var bgImgEl = document.getElementById('bgImageLayer');
@@ -1990,7 +2068,7 @@
             bgImgEl.classList.remove('show');
         };
 
-        function extractAndSetBackground(data) {
+        function applyBackgroundFromData(data){
             if (data && data.imageData && data.imageName !== PLACEHOLDER_NAME) {
                 if (window.setBackgroundImage) window.setBackgroundImage(data.imageData);
             }
@@ -2076,15 +2154,6 @@
             }
         }
 
-        function showError(msg, noReload) {
-            var m = msg || '该谱面不是标准 4K 谱面';
-            if (noReload) {
-                window.__4kcc_showAlert(m);
-            } else {
-                window.__4kcc_showError(m);
-            }
-        }
-
         function applyIconsByNetwork(){
             var block = window.__4kcc_settings.values.noNetwork;
             var imgs = document.querySelectorAll('img[data-src]');
@@ -2123,7 +2192,7 @@
             currentFile = null; fileBuffer = null;
             parsedDataList = []; selectedChartData = null; rawZip = null;
             isPezParsePending = false; sourceType = ''; targetType = '';
-            isMultiMode = false; selectedIndices = [];
+            chartViewAll = false; selectedIndices = [];
             fileInput.value = ''; formatSelectZip.value = '';
             updateFileStatus(null); editFormat.value = '';
             paramsBpmWarning.style.display = 'none';
@@ -2230,18 +2299,25 @@
             });
         }
 
+        /* ============ 扫描 / 解析 ============ */
         async function scanMCZ(zip){
             var entries = Object.keys(zip.files).filter(function(p){ var e=zip.files[p]; if(e.dir) return false; var n=p.split('/').pop(); return n&&n.length>0&&n.endsWith('.mc'); });
             var charts=[];
+            var failures=[];
             for(var pi=0; pi<entries.length; pi++){
                 var p=entries[pi];
                 try{
                     var e=zip.files[p]; var c=await e.async('string'); var j=JSON.parse(c);
                     var m=j.meta||{}; var mode=m.mode; var col=m.mode_ext && m.mode_ext.column;
-                    if(mode===0&&col===4) charts.push({path:p, version:m.version||'Unknown', json:j, content:c});
-                } catch(e){}
+                    if(mode !== 0){ failures.push({file:p, reason:'not_mania'}); continue; }
+                    var kn = 4;
+                    if(typeof col === 'number' && isFinite(col) && col > 0) kn = Math.floor(col);
+                    else if(typeof col === 'string' && col.length>0){ var pn = parseInt(col,10); if(!isNaN(pn) && pn>0) kn = pn; }
+                    if(kn <= 0){ failures.push({file:p, reason:'missing_meta'}); continue; }
+                    charts.push({path:p, version:m.version||'Unknown', json:j, content:c, keynum:kn, is4K: kn === 4});
+                } catch(e){ failures.push({file:p, reason:'json_parse'}); }
             }
-            return charts;
+            return { charts: charts, failures: failures };
         }
 
         async function parseMCZFull(zip, chartData){
@@ -2258,56 +2334,96 @@
                 var type=isHold?2:1;
                 noteData.push({start:start,end:end,column:col,type:type});
             }
-            var entries=Object.keys(zip.files); var audioEntry=null, imageEntry=null;
-            for(var ei=0; ei<entries.length; ei++){ var p2=entries[ei]; var n3=p2.split('/').pop(); if(audioName&&n3===audioName) audioEntry=zip.files[p2]; if(bgName&&n3===bgName) imageEntry=zip.files[p2]; }
-            var audioData=null;
-            if(audioEntry){ audioData=await audioEntry.async('arraybuffer'); }
-            var imageData=null, imageName=bgName;
-            if(imageEntry) imageData=await imageEntry.async('arraybuffer');
-            else { imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; }
+            
+            var entries=Object.keys(zip.files); 
+            var audioEntry=null, imageEntry=null;
+            var cleanAudioName = (audioName || '').replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+            var cleanBgName = (bgName || '').replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+
+            for(var ei=0; ei<entries.length; ei++){ 
+                var p2=entries[ei]; var n3=p2.split('/').pop(); 
+                if(cleanAudioName && n3===cleanAudioName) audioEntry=zip.files[p2]; 
+                if(cleanBgName && n3===cleanBgName) imageEntry=zip.files[p2]; 
+            }
+            if(!audioEntry){
+                for(var ei3=0; ei3<entries.length; ei3++){
+                    var p4=entries[ei3]; var n4=p4.split('/').pop();
+                    if(/\.(mp3|ogg|wav)$/i.test(n4)){ audioEntry=zip.files[p4]; audioName=n4; break; }
+                }
+            }
+            if(!imageEntry){
+                for(var ei2=0; ei2<entries.length; ei2++){
+                    var p3=entries[ei2]; var n3=p3.split('/').pop();
+                    if(/\.(jpg|jpeg|png)$/i.test(n3)){ imageEntry=zip.files[p3]; bgName=n3; break; }
+                }
+            }
+
+            var audioData=null, imageData=null, imageName=bgName;
+            if(audioEntry){ 
+                audioData=await audioEntry.async('arraybuffer'); 
+                audioName = audioEntry.name.split('/').pop();
+            } else {
+                audioName = '';
+            }
+            if(imageEntry) {
+                imageData=await imageEntry.async('arraybuffer');
+                imageName = imageEntry.name.split('/').pop();
+            } else { 
+                imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; 
+            }
+
             var offsetForTmp=-mczOffset;
             var bpmSegments=bpmList.map(function(b){ return {beat:b.beat,bpm:b.bpm}; });
             var hasMultipleBPM=bpmSegments.length>1;
-            var result = {
+            return {
                 type:'mcz', title:song.title||'Untitled', level:meta.version||'4K',
                 composer:song.artist||'Unknown', charter:meta.creator||'Unknown', illustrator:'UK',
                 audio:audioName, background:imageName, duration:0,
                 bpmSegments:bpmSegments, hasMultipleBPM:hasMultipleBPM, offset:offsetForTmp,
                 notes:noteData, audioData:audioData, imageData:imageData,
-                audioName:audioName, imageName:imageName, mcJson:mcJson
+                audioName:audioName, imageName:imageName, mcJson:mcJson,
+                keynum: chartData.keynum || 4
             };
-            extractAndSetBackground(result);
-            return result;
         }
 
         async function scanOSZ(zip){
             var entries=Object.keys(zip.files).filter(function(p){ var e=zip.files[p]; if(e.dir) return false; var n=p.split('/').pop(); return n&&n.length>0&&n.endsWith('.osu'); });
             var charts=[];
+            var failures=[];
             for(var pi=0; pi<entries.length; pi++){
                 var p=entries[pi];
                 try{
                     var e=zip.files[p]; var c=await e.async('string');
+                    c = c.replace(/^\uFEFF/, ''); // 清除 BOM
                     var mm=c.match(/\[General\][\s\S]*?Mode:\s*(\d+)/i);
-                    var cs=c.match(/\[Difficulty\][\s\S]*?CircleSize:\s*(\d+)/i);
-                    var mode=mm?parseInt(mm[1]):-1; var csn=cs?parseInt(cs[1]):-1;
-                    if(mode===3&&csn===4){
-                        var vm=c.match(/\[Metadata\][\s\S]*?Version:\s*([^\n\r]+)/i);
-                        var ver=vm?vm[1].trim():'Unknown';
-                        charts.push({path:p, version:ver, content:c});
-                    }
-                } catch(e){}
+                    var cs=c.match(/\[Difficulty\][\s\S]*?CircleSize:\s*([\d.]+)/i);
+                    var mode=mm?parseInt(mm[1]):-1;
+                    if(mode !== 3){ failures.push({file:p, reason:'not_mania'}); continue; }
+                    var kn = 4;
+                    if(cs){ var pn = Math.round(parseFloat(cs[1])); if(!isNaN(pn) && pn > 0) kn = pn; }
+                    if(kn <= 0){ failures.push({file:p, reason:'missing_meta'}); continue; }
+                    var vm=c.match(/\[Metadata\][\s\S]*?Version:\s*([^\n\r]+)/i);
+                    var ver=vm?vm[1].trim():'Unknown';
+                    charts.push({path:p, version:ver, content:c, keynum: kn, is4K: kn === 4});
+                } catch(e){ failures.push({file:p, reason:'read_error'}); }
             }
-            return charts;
+            return { charts: charts, failures: failures };
         }
 
         async function parseOSZFull(zip, chartData){
             var content=chartData.content;
-            var general=content.match(/\[General\][\s\S]*?(?=\[[A-Z])/i);
-            var metadata=content.match(/\[Metadata\][\s\S]*?(?=\[[A-Z])/i);
-            var timingPoints=content.match(/\[TimingPoints\][\s\S]*?(?=\[[A-Z])/i);
+            content = content.replace(/^\uFEFF/, '');
+            var general=content.match(/\[General\][\s\S]*?(?=\n\[[A-Z])/i);
+            var metadata=content.match(/\[Metadata\][\s\S]*?(?=\n\[[A-Z])/i);
+            var timingPoints=content.match(/\[TimingPoints\][\s\S]*?(?=\n\[[A-Z])/i);
             var hitObjects=content.match(/\[HitObjects\][\s\S]*/i);
+            
             var audioName='';
-            if(general){ var m=general[0].match(/AudioFilename:\s*([^\n\r]+)/i); if(m) audioName=m[1].trim(); }
+            var am = content.match(/AudioFilename:\s*([^\r\n]+)/i);
+            if (am && am[1]) {
+                audioName = am[1].replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/^"|"$/g, '').trim();
+            }
+
             var title='', artist='', creator='', version='';
             if(metadata){
                 var t=metadata[0].match(/Title:\s*([^\n\r]+)/i);
@@ -2317,8 +2433,9 @@
                 if(t) title=t[1].trim(); if(a) artist=a[1].trim(); if(c) creator=c[1].trim(); if(v) version=v[1].trim();
             }
             var bgName='';
-            var events=content.match(/\[Events\][\s\S]*?(?=\[[A-Z])/i);
-            if(events){ var bm=events[0].match(/0,0,"([^"]+\.(?:jpg|png|jpeg))"/i); if(bm) bgName=bm[1]; }
+            var events=content.match(/\[Events\][\s\S]*?(?=\n\[[A-Z])/i);
+            if(events){ var bm=events[0].match(/0,0,"([^"]+\.(?:jpg|png|jpeg))"/i); if(bm) bgName=bm[1].trim(); }
+            
             var bpmSegments=[];
             if(timingPoints){
                 var lines=timingPoints[0].split('\n').filter(function(l){ return l.trim()&&!l.trim().startsWith('//'); });
@@ -2362,8 +2479,7 @@
                     notes.push({x:x,time:time2,type:type2,endTime:endTime});
                 }
             }
-            var uniqueX=[...new Set(xValues)].sort(function(a,b){ return a-b; });
-            if(uniqueX.length!==4){ showError('该谱面不是标准 4K 谱面'); return null; }
+            var uniqueX=Array.from(new Set(xValues)).sort(function(a,b){ return a-b; });
             var xMap={}; uniqueX.forEach(function(x,idx){ xMap[x]=idx; });
             var noteData=[];
             for(var ni=0; ni<notes.length; ni++){
@@ -2385,11 +2501,16 @@
                 var typeVal=n.type===128?2:1;
                 noteData.push({start:startBeat,end:endBeat,column:col,type:typeVal});
             }
-            var entries=Object.keys(zip.files); var audioEntry=null, imageEntry=null;
+            
+            var entries=Object.keys(zip.files); 
+            var audioEntry=null, imageEntry=null;
+            var cleanAudioName = (audioName || '').replace(/^"|"$/g, '').trim();
+            var cleanBgName = (bgName || '').replace(/^"|"$/g, '').trim();
+
             for(var ei=0; ei<entries.length; ei++){
                 var p2=entries[ei]; var n2=p2.split('/').pop();
-                if(audioName&&n2===audioName) audioEntry=zip.files[p2];
-                if(bgName&&n2===bgName) imageEntry=zip.files[p2];
+                if(cleanAudioName && n2 === cleanAudioName) audioEntry=zip.files[p2];
+                if(cleanBgName && n2 === cleanBgName) imageEntry=zip.files[p2];
             }
             if(!imageEntry){
                 for(var ei2=0; ei2<entries.length; ei2++){
@@ -2397,21 +2518,37 @@
                     if(/\.(jpg|jpeg|png)$/i.test(n3)){ imageEntry=zip.files[p3]; bgName=n3; break; }
                 }
             }
+            if(!audioEntry){
+                for(var ei3=0; ei3<entries.length; ei3++){
+                    var p4=entries[ei3]; var n4=p4.split('/').pop();
+                    if(/\.(mp3|ogg|wav)$/i.test(n4)){ audioEntry=zip.files[p4]; audioName=n4; break; }
+                }
+            }
+
             var audioData=null, imageData=null; var duration=0;
-            if(audioEntry){ audioData=await audioEntry.async('arraybuffer'); }
-            if(imageEntry) imageData=await imageEntry.async('arraybuffer');
-            else { imageData=getPlaceholderBuffer(); bgName=PLACEHOLDER_NAME; }
+            if(audioEntry){ 
+                audioData=await audioEntry.async('arraybuffer'); 
+                audioName = audioEntry.name.split('/').pop();
+            } else {
+                audioName = '';
+            }
+            if(imageEntry) {
+                imageData=await imageEntry.async('arraybuffer');
+                bgName = imageEntry.name.split('/').pop();
+            } else { 
+                imageData=getPlaceholderBuffer(); bgName=PLACEHOLDER_NAME; 
+            }
+
             var bpmSegmentsForExport=bpmSegments.map(function(seg){ return { beat:floatToBeat(seg.sp), bpm:seg.bpm, time:seg.time }; });
-            var result = {
+            return {
                 type:'osz', title:title||'Untitled', level:version||'4K',
                 composer:artist||'Unknown', charter:creator||'Unknown', illustrator:'UK',
                 audio:audioName, background:bgName, duration:duration,
                 bpmSegments:bpmSegmentsForExport, hasMultipleBPM:hasMultipleBPM, offset:fmss,
                 notes:noteData, audioData:audioData, imageData:imageData,
-                audioName:audioName, imageName:bgName, osuContent:content, firstOffset:fmss
+                audioName:audioName, imageName:bgName, osuContent:content, firstOffset:fmss,
+                keynum: chartData.keynum || 4
             };
-            extractAndSetBackground(result);
-            return result;
         }
 
         var OFFLINE_TICKS_PER_BEAT = 32;
@@ -2741,10 +2878,25 @@
             charter = charter || 'Unknown';
             illustrator = illustrator || 'UK';
 
+            var cleanAudioFile = (audioFile || '').replace(/^"|"$/g, '').trim();
+            var cleanBgFile = (bgFile || '').replace(/^"|"$/g, '').trim();
+
             for(var ei4=0; ei4<entries.length; ei4++){
                 var p4=entries[ei4]; var n4=p4.split('/').pop(); var e3=zip.files[p4];
-                if(audioFile&&n4===audioFile){ audioData=await e3.async('arraybuffer'); audioName=n4; }
-                if(bgFile&&n4===bgFile){ imageData=await e3.async('arraybuffer'); imageName=n4; }
+                if(cleanAudioFile && n4===cleanAudioFile){ audioData=await e3.async('arraybuffer'); audioName=n4; }
+                if(cleanBgFile && n4===cleanBgFile){ imageData=await e3.async('arraybuffer'); imageName=n4; }
+            }
+            if(!audioData){
+                for(var ei5=0; ei5<entries.length; ei5++){
+                    var p5=entries[ei5]; var n5=p5.split('/').pop();
+                    if(/\.(mp3|ogg|wav)$/i.test(n5)){ audioData=await zip.files[p5].async('arraybuffer'); audioName=n5; break; }
+                }
+            }
+            if(!imageData){
+                for(var ei6=0; ei6<entries.length; ei6++){
+                    var p6=entries[ei6]; var n6=p6.split('/').pop();
+                    if(/\.(jpg|jpeg|png)$/i.test(n6)){ imageData=await zip.files[p6].async('arraybuffer'); imageName=n6; break; }
+                }
             }
             if(!imageData){ imageData=getPlaceholderBuffer(); imageName=PLACEHOLDER_NAME; }
 
@@ -3048,7 +3200,7 @@
 
             if(finalNotes.length===0){ showError('所有音符皆无法分配或冲突'); return null; }
 
-            var result2 = {
+            return {
                 type: 'pez',
                 title: title, level: level,
                 composer: composer, charter: charter, illustrator: illustrator,
@@ -3057,52 +3209,88 @@
                 offset: pezOffset,
                 notes: finalNotes.map(function(n){ return { start: n.start, end: n.end, column: n.column, type: n.type }; }),
                 audioData: audioData, imageData: imageData,
-                audioName: audioName, imageName: imageName, chartJson: chartJson
+                audioName: audioName, imageName: imageName, chartJson: chartJson,
+                keynum: 4
             };
-            extractAndSetBackground(result2);
-            return result2;
         }
 
         async function parse4KZ(zip){
             var files = zip.files;
-            var tmpFContent = null, tmpTContent = null, audioData = null, imageData = null;
+            var tmpFContent = null;
+            var tmpTEntries = [];
+            var audioData = null, imageData = null;
             var audioName = '', imageName = '';
             for(var path in files){
                 var file = files[path];
                 if(file.dir) continue;
                 var name = path.split('/').pop();
                 if(name === 'Tmp-F.txt') tmpFContent = await file.async('string');
-                else if(name === 'Tmp-T.txt') tmpTContent = await file.async('string');
+                else if(/^Tmp-T\d*\.txt$/.test(name)) tmpTEntries.push({ name: name, content: await file.async('string') });
                 else if(name.startsWith('audio.')) { audioData = await file.async('arraybuffer'); audioName = name; }
                 else if(name.startsWith('bg.')) { imageData = await file.async('arraybuffer'); imageName = name; }
             }
-            if(!tmpFContent || !tmpTContent){ showError('无效的 4kz 文件：缺少 Tmp-F.txt 或 Tmp-T.txt'); return null; }
+            if(!tmpFContent || tmpTEntries.length === 0){
+                return { list: [], failures: [{ file: 'Tmp-F/Tmp-T', reason: 'missing_meta' }] };
+            }
+
+            tmpTEntries.sort(function(a, b){
+                function rank(n){
+                    if (n === 'Tmp-T.txt') return 0;
+                    var m = n.match(/^Tmp-T(\d+)\.txt$/);
+                    return m ? parseInt(m[1], 10) : 9999;
+                }
+                return rank(a.name) - rank(b.name);
+            });
+
             var meta = parseTmpF(tmpFContent);
-            var notes = parseTmpT(tmpTContent);
-            if(!meta.bpmSegments || meta.bpmSegments.length===0){ showError('4kz 文件缺少 BPM 信息'); return null; }
-            var result = {
-                type: '4kz',
-                title: meta.title || 'Untitled',
-                level: (typeof meta.level === 'string' ? meta.level : (Array.isArray(meta.level) ? meta.level[0] : '4K')) || '4K',
-                composer: meta.composer || 'Unknown',
-                charter: (typeof meta.charter === 'string' ? meta.charter : (Array.isArray(meta.charter) ? meta.charter[0] : 'Unknown')) || 'Unknown',
-                illustrator: meta.illustrator || 'UK',
-                audio: meta.audio || '', background: meta.background || '',
-                duration: parseFloat(meta.duration) || 0,
-                bpmSegments: meta.bpmSegments, hasMultipleBPM: meta.bpmSegments.length > 1,
-                offset: parseFloat(meta.offset) || 0,
-                notes: notes, audioData: audioData, imageData: imageData,
-                audioName: audioName, imageName: imageName
-            };
-            extractAndSetBackground(result);
-            return result;
+            if(!meta.bpmSegments || meta.bpmSegments.length === 0){
+                return { list: [], failures: [{ file: 'Tmp-F.txt', reason: 'missing_meta' }] };
+            }
+
+            var list = [];
+            var failures = [];
+            for (var i = 0; i < tmpTEntries.length; i++) {
+                var notes = parseTmpT(tmpTEntries[i].content);
+                var lv = meta.level;
+                var ch = meta.charter;
+                var kn = meta.keynum;
+                if (Array.isArray(lv)) lv = lv[i] !== undefined ? lv[i] : (lv[0] || '4K');
+                if (Array.isArray(ch)) ch = ch[i] !== undefined ? ch[i] : (ch[0] || 'Unknown');
+                if (Array.isArray(kn)) kn = kn[i] !== undefined ? kn[i] : 4;
+                else if (kn === undefined || kn === null || kn === '') kn = 4;
+                kn = parseInt(kn, 10);
+                if(isNaN(kn) || kn <= 0){ failures.push({ file: tmpTEntries[i].name, reason: 'missing_meta' }); continue; }
+
+                list.push({
+                    type: '4kz',
+                    title: meta.title || 'Untitled',
+                    level: (typeof lv === 'string' ? lv : (Array.isArray(lv) ? lv[0] : '4K')) || '4K',
+                    composer: meta.composer || 'Unknown',
+                    charter: (typeof ch === 'string' ? ch : (Array.isArray(ch) ? ch[0] : 'Unknown')) || 'Unknown',
+                    illustrator: meta.illustrator || 'UK',
+                    audio: meta.audio || '', background: meta.background || '',
+                    duration: parseFloat(meta.duration) || 0,
+                    bpmSegments: meta.bpmSegments, hasMultipleBPM: meta.bpmSegments.length > 1,
+                    offset: parseFloat(meta.offset) || 0,
+                    notes: notes, audioData: audioData, imageData: imageData,
+                    audioName: audioName, imageName: imageName,
+                    keynum: kn, is4K: kn === 4
+                });
+            }
+            return { list: list, failures: failures };
         }
 
-        function notesToTmpT(notes){
-            return notes.map(function(n){
+        function notesToTmpT(notes, keynum){
+            var kn = keynum || 4;
+            if(kn <= 0) kn = 4;
+            var out = [];
+            for(var i=0;i<notes.length;i++){
+                var n = notes[i];
+                if(n.column >= kn) continue;
                 var s = n.start.join(','); var e = n.end.join(',');
-                return s+'-'+e+'-'+n.column+'-'+n.type;
-            }).join('\n');
+                out.push(s+'-'+e+'-'+n.column+'-'+n.type);
+            }
+            return out.join('\n');
         }
         function parseTmpF(tmpF){
             var lines = tmpF.trim().split('\n').filter(function(l){ return l.trim(); });
@@ -3113,7 +3301,7 @@
                 if(idx===-1) continue;
                 var key = line.slice(0,idx).trim();
                 var val = line.slice(idx+1).trim();
-                if(key === 'bpmSegments' || key === 'charter' || key === 'level'){
+                if(key === 'bpmSegments' || key === 'charter' || key === 'level' || key === 'keynum'){
                     try { data[key] = JSON.parse(val); } catch(e){ data[key] = val; }
                 } else {
                     data[key] = val;
@@ -3164,26 +3352,37 @@
         async function downloadSinglePEZ(data, pathCode, axisN, speedVal){
             var offsetVal = parseFloat(data.offset) || 0;
             var bpmSegments = data.bpmSegments;
-            var posMap = {0:-axisN, 1:-axisN/3, 2:axisN/3, 3:axisN};
-            var notesArray = data.notes.map(function(n){
-                return {
+            var kn = data.keynum || 4;
+            if(kn <= 0) kn = 4;
+            var notesArray = [];
+            for(var ni=0; ni<data.notes.length; ni++){
+                var n = data.notes[ni];
+                if(n.column >= kn) continue;
+                notesArray.push({
                     above:1, alpha:255, endTime:n.end, isFake:0,
-                    positionX: posMap[n.column] || 0, size:1, speed:1,
+                    positionX: pezXOf(kn, n.column, axisN), size:1, speed:1,
                     startTime:n.start, type:n.type, visibleTime:999999, yOffset:0
-                };
-            });
+                });
+            }
             var bpmList = bpmSegments.map(function(seg){
                 var bpm = (seg.bpm && seg.bpm > 0) ? seg.bpm : 120;
                 return {startTime:seg.beat||[0,0,1], bpm:bpm};
             });
+
+            var outAudioName = data.audioName ? data.audioName.split('/').pop().replace(/^"|"$/g, '').trim() : '';
+            var outImgName = data.imageName ? data.imageName.split('/').pop().replace(/^"|"$/g, '').trim() : '';
+            
+            if(data.audioData && !outAudioName) outAudioName = 'audio.mp3';
+            if(data.imageData && !outImgName) outImgName = 'bg.jpg';
+
             var chartJson = {
                 BPMList: bpmList,
                 META: {
-                    RPEVersion:160, background: data.background||'', charter: data.charter||'',
+                    RPEVersion:160, background: outImgName, charter: data.charter||'',
                     composer: data.composer||'', duration: parseFloat(data.duration)||0,
                     id: data.title||'Untitled', illustration: data.illustrator||'UK',
                     level: data.level||'4K', name: data.title||'Untitled',
-                    offset: offsetVal, song: data.audio||''
+                    offset: offsetVal, song: outAudioName
                 },
                 chartTime:0, judgeLineGroup:["Default"],
                 judgeLineList:[{
@@ -3208,20 +3407,24 @@
                 }],
                 multiLineString:"", multiScale:1
             };
+            
             var infoLines = [
                 '#', 'Name: '+(data.title||'Untitled'), 'Path: '+pathCode,
-                'Song: '+(data.audio||''), 'Picture: '+(data.background||''),
+                'Song: '+outAudioName, 'Picture: '+outImgName,
                 'Chart: chart.json', 'Level: '+(data.level||'4K'),
                 'Composer: '+(data.composer||''), 'Charter: '+(data.charter||''),
                 'Illustrator: '+(data.illustrator||'UK'),
-                'Length: '+((parseFloat(data.duration)||0).toFixed(3))
+                'Length: '+((parseFloat(data.duration)||0).toFixed(3)),
+                'Keynum: '+kn
             ];
             var zip = new JSZip();
             zip.file('info.txt', infoLines.join('\n'));
             zip.file('chart.json', JSON.stringify(chartJson, null, 3));
             zip.file('Tool.txt', TOOL_TEXT);
-            if(data.audioData && data.audioName) zip.file(data.audioName, data.audioData);
-            if(data.imageData && data.imageName) zip.file(data.imageName, data.imageData);
+            
+            if(data.audioData) zip.file(outAudioName, data.audioData);
+            if(data.imageData) zip.file(outImgName, data.imageData);
+
             var blob = await zip.generateAsync({type:'blob'});
             var dn = sanitizeFileName((data.title||'Untitled') + ' ' + (data.level||'4K')) + '.pez';
             downloadBlob(blob, dn);
@@ -3230,8 +3433,7 @@
 
         async function convertToMCZMulti(dataList){
             var d0 = dataList[0];
-            var offsetVal = parseFloat(d0.offset) || 0;
-            var mczOffset = -offsetVal;
+            var mczOffset = -(parseFloat(d0.offset) || 0);
             var bpmSegments = d0.bpmSegments;
             var isMulti = dataList.length > 1;
 
@@ -3240,13 +3442,15 @@
 
             for (var di = 0; di < dataList.length; di++) {
                 var data = dataList[di];
+                var kn = data.keynum || 4;
+                if(kn <= 0) kn = 4;
                 var mcJson = {
                     meta: {
                         $ver:0, creator: data.charter||'', background: d0.background||'',
                         version: data.level||'4K', id:0, mode:0,
                         time: Math.floor(Date.now()/1000),
                         song: { title: d0.title||'Untitled', artist: d0.composer||'', id:0 },
-                        mode_ext: { column:4, bar_begin:0 }
+                        mode_ext: { column: kn, bar_begin:0 }
                     },
                     time: bpmSegments.map(function(seg){
                         var bpm = (seg.bpm && seg.bpm > 0) ? seg.bpm : 120;
@@ -3258,6 +3462,7 @@
                 };
                 for(var ni=0; ni<data.notes.length; ni++){
                     var n = data.notes[ni];
+                    if(n.column >= kn) continue;
                     var note = { beat: n.start, column: n.column };
                     if(n.type === 2) note.endbeat = n.end;
                     mcJson.note.push(note);
@@ -3268,8 +3473,8 @@
                 zip.file(mcName, JSON.stringify(mcJson, null, 2));
             }
 
-            if(d0.audioData && d0.audioName) zip.file(d0.audioName, d0.audioData);
-            if(d0.imageData && d0.imageName) zip.file(d0.imageName, d0.imageData);
+            if(d0.audioData && d0.audioName) zip.file(d0.audioName.split('/').pop(), d0.audioData);
+            if(d0.imageData && d0.imageName) zip.file(d0.imageName.split('/').pop(), d0.imageData);
 
             var blob = await zip.generateAsync({type:'blob'});
             var baseName = sanitizeFileName(d0.title || 'Untitled');
@@ -3314,16 +3519,18 @@
                 }
             }
 
-            var colToX = [64, 192, 320, 448];
             var zip = new JSZip();
-            var bgExt = getExt(d0.background) || 'jpg';
-            var audioExt = getExt(d0.audio) || 'ogg';
+            var bgExt = getExt(d0.imageName) || 'jpg';
+            var audioExt = getExt(d0.audioName) || 'ogg';
 
             for (var di = 0; di < dataList.length; di++) {
                 var data = dataList[di];
+                var kn = data.keynum || 4;
+                if(kn <= 0) kn = 4;
                 var hitObjects = [];
                 for (var ni = 0; ni < data.notes.length; ni++) {
                     var n = data.notes[ni];
+                    if(n.column >= kn) continue;
                     var startBeat = n.start[0] + n.start[1] / (n.start[2] || 1);
 
                     var idx = -1;
@@ -3340,7 +3547,7 @@
 
                     var pureMs = segSp + (startBeat - segBeat) * msPerBeat;
                     var timeMs = Math.round(pureMs + offset);
-                    var x = colToX[n.column] || 64;
+                    var x = osuXOf(kn, n.column);
 
                     if (n.type === 1) {
                         hitObjects.push(x + ',192,' + timeMs + ',1,0,0:0:0:0');
@@ -3367,7 +3574,7 @@
                     '[Metadata]', 'Title: '+(d0.title||'Untitled'),
                     'Artist: '+(d0.composer||'Unknown'), 'Creator: '+(data.charter||'Unknown'),
                     'Version: '+(data.level||'4K'), '',
-                    '[Difficulty]', 'CircleSize: 4', 'HPDrainRate: '+hpDrain,
+                    '[Difficulty]', 'CircleSize: '+kn, 'HPDrainRate: '+hpDrain,
                     'OverallDifficulty: 6.5', 'ApproachRate: 5', 'SliderMultiplier: 1.4', '',
                     '[Events]', '0,0,"bg.'+bgExt+'",0,0', '',
                     '[TimingPoints]', ...timingLines, '',
@@ -3399,7 +3606,7 @@
             var zip = new JSZip();
             zip.file('Tool.txt', TOOL_TEXT);
 
-            var levelField, charterField;
+            var levelField, charterField, keynumField;
             if (isMulti) {
                 levelField = JSON.stringify(dataList.map(function(d){ return d.level || '4K'; }));
                 charterField = JSON.stringify(dataList.map(function(d){ return d.charter || 'Unknown'; }));
@@ -3407,6 +3614,8 @@
                 levelField = d0.level || '4K';
                 charterField = d0.charter || 'Unknown';
             }
+            keynumField = JSON.stringify(dataList.map(function(d){ return d.keynum || 4; }));
+
             var fLines = [
                 'title: '+(d0.title||'Untitled'),
                 'level: '+levelField,
@@ -3417,16 +3626,17 @@
                 'background: bg.'+imgExt,
                 'duration: '+(d0.duration||0),
                 'bpmSegments: '+JSON.stringify(d0.bpmSegments),
-                'offset: '+(d0.offset||0)
+                'offset: '+(d0.offset||0),
+                'keynum: '+keynumField
             ];
             zip.file('Tmp-F.txt', fLines.join('\n'));
 
             if (isMulti) {
                 for (var i = 0; i < dataList.length; i++) {
-                    zip.file('Tmp-T' + (i + 1) + '.txt', notesToTmpT(dataList[i].notes));
+                    zip.file('Tmp-T' + (i + 1) + '.txt', notesToTmpT(dataList[i].notes, dataList[i].keynum));
                 }
             } else {
-                zip.file('Tmp-T.txt', notesToTmpT(dataList[0].notes));
+                zip.file('Tmp-T.txt', notesToTmpT(dataList[0].notes, dataList[0].keynum));
             }
 
             if(d0.audioData) zip.file('audio.'+audioExt, d0.audioData);
@@ -3442,41 +3652,74 @@
 
         function renderChartList(charts){
             chartList.innerHTML = '';
-            isMultiMode = false;
-            if (multiToggleBtn) multiToggleBtn.textContent = '开启多选';
+            chartViewAll = false;
+            if (multiToggleBtn) multiToggleBtn.textContent = '查看全部定轨谱面';
 
             charts.forEach(function(c, idx){
                 var item = document.createElement('label');
                 item.className = 'chart-item';
                 item.dataset.idx = idx;
+                item.dataset.is4k = c.is4K ? '1' : '0';
 
                 var cb = document.createElement('input');
                 cb.type = 'checkbox';
                 cb.value = idx;
+                cb.checked = !!c.is4K;
                 cb.addEventListener('change', function(){
-                    if (!isMultiMode) {
-                        if (cb.checked) {
-                            chartList.querySelectorAll('input[type="checkbox"]').forEach(function(x){
-                                if (x !== cb) x.checked = false;
-                            });
-                        }
-                    }
                     updateSelectedIndices();
                     updateChartItemStyles();
                 });
 
                 var span = document.createElement('span');
+                span.className = 'chart-label';
                 span.textContent = c.version || 'Unknown';
 
                 item.appendChild(cb);
                 item.appendChild(span);
+
+                if(c.keynum && c.keynum > 0){
+                    var kn = document.createElement('span');
+                    kn.className = 'chart-keynum';
+                    kn.textContent = '[' + c.keynum + 'K]';
+                    item.appendChild(kn);
+                }
+
                 chartList.appendChild(item);
             });
 
-            var first = chartList.querySelector('input[type="checkbox"]');
-            if (first) first.checked = true;
+            applyChartFilter();
             updateSelectedIndices();
             updateChartItemStyles();
+        }
+
+        function applyChartFilter(){
+            var items = chartList.querySelectorAll('.chart-item');
+            var visible4k = 0;
+            for(var i=0;i<items.length;i++){
+                var item = items[i];
+                var is4k = item.dataset.is4k === '1';
+                if(chartViewAll || is4k){
+                    item.style.display = '';
+                    if(is4k) visible4k++;
+                } else {
+                    item.style.display = 'none';
+                }
+                var kn = item.querySelector('.chart-keynum');
+                if(kn) kn.style.display = chartViewAll ? '' : 'none';
+            }
+            var hint = document.getElementById('chartNo4kHint');
+            if(!hint){
+                hint = document.createElement('div');
+                hint.id = 'chartNo4kHint';
+                hint.style.cssText = 'text-align:center;color:#a0a8b0;font-size:14px;padding:20px 0;';
+                chartList.appendChild(hint);
+            }
+            if(!chartViewAll && visible4k === 0){
+                hint.textContent = '无 4K 谱面，点击"查看全部定轨谱面"来查看其他谱面。';
+                hint.style.display = '';
+            } else {
+                hint.style.display = 'none';
+            }
         }
 
         function updateSelectedIndices(){
@@ -3495,15 +3738,19 @@
         }
 
         multiToggleBtn.addEventListener('click', function(){
-            isMultiMode = !isMultiMode;
-            multiToggleBtn.textContent = isMultiMode ? '退出多选' : '开启多选';
-            if (!isMultiMode) {
-                var checked = Array.from(chartList.querySelectorAll('input[type="checkbox"]:checked'));
-                chartList.querySelectorAll('input[type="checkbox"]').forEach(function(x){ x.checked = false; });
-                if (checked.length > 0) checked[0].checked = true;
-                updateSelectedIndices();
-                updateChartItemStyles();
+            chartViewAll = !chartViewAll;
+            multiToggleBtn.textContent = chartViewAll ? '仅查看 4K 谱面' : '查看全部定轨谱面';
+            if(!chartViewAll){
+                chartList.querySelectorAll('.chart-item').forEach(function(item){
+                    if(item.dataset.is4k !== '1'){
+                        var cb = item.querySelector('input[type="checkbox"]');
+                        if(cb) cb.checked = false;
+                    }
+                });
             }
+            applyChartFilter();
+            updateSelectedIndices();
+            updateChartItemStyles();
         });
 
         function applyMetaToForm(dataList){
@@ -3549,21 +3796,45 @@
 
                 if(ext === '4kz'){
                     sourceType = '4kz';
-                    var data = await parse4KZ(zip);
-                    if(!data) return;
-                    parsedDataList = [data];
-                    updateMetaHeader();
-                    applyMetaToForm(parsedDataList);
-                    showPage('meta');
+                    var res = await parse4KZ(zip);
+                    if(!res.list || res.list.length === 0){
+                        var sum4 = formatFailureSummary(res.failures || []);
+                        window.__4kcc_showAlert('无效的 4kz 文件' + (sum4 ? '\n失败原因：' + sum4 : ''));
+                        return;
+                    }
+                    if(res.failures && res.failures.length > 0){
+                        window.__4kcc_toast(res.failures.length + ' 个谱面解析失败，已忽略');
+                    }
+                    if(res.list.length === 1){
+                        parsedDataList = [res.list[0]];
+                        applyBackgroundFromData(parsedDataList[0]);
+                        updateMetaHeader();
+                        applyMetaToForm(parsedDataList);
+                        showPage('meta');
+                    } else {
+                        selectedChartData = res.list.map(function(d, i){
+                            return { version: d.level || ('谱面'+(i+1)), _4kzData: d, keynum: d.keynum, is4K: d.keynum === 4 };
+                        });
+                        rawZip = zip;
+                        renderChartList(selectedChartData);
+                        showPage('chartSelect');
+                    }
                     return;
                 }
 
                 if(ext === 'mcz'){
                     sourceType = 'mcz';
-                    var charts = await scanMCZ(zip);
-                    if(charts.length===0){ showError('未找到有效的 4K 谱面'); return; }
-                    selectedChartData = charts; rawZip = zip;
-                    renderChartList(charts);
+                    var r1 = await scanMCZ(zip);
+                    if(r1.charts.length === 0){
+                        var sum1 = formatFailureSummary(r1.failures);
+                        window.__4kcc_showAlert('未找到有效谱面' + (sum1 ? '\n失败原因：' + sum1 : ''));
+                        return;
+                    }
+                    if(r1.failures.length > 0){
+                        window.__4kcc_toast(r1.failures.length + ' 个文件解析失败，已忽略');
+                    }
+                    selectedChartData = r1.charts; rawZip = zip;
+                    renderChartList(r1.charts);
                     showPage('chartSelect');
                     return;
                 } else if(ext === 'pez'){
@@ -3576,10 +3847,17 @@
                     return;
                 } else if(ext === 'osz'){
                     sourceType = 'osz';
-                    var charts2 = await scanOSZ(zip);
-                    if(charts2.length===0){ showError('未找到有效的 4K 谱面'); return; }
-                    selectedChartData = charts2; rawZip = zip;
-                    renderChartList(charts2);
+                    var r2 = await scanOSZ(zip);
+                    if(r2.charts.length === 0){
+                        var sum2 = formatFailureSummary(r2.failures);
+                        window.__4kcc_showAlert('未找到有效谱面' + (sum2 ? '\n失败原因：' + sum2 : ''));
+                        return;
+                    }
+                    if(r2.failures.length > 0){
+                        window.__4kcc_toast(r2.failures.length + ' 个文件解析失败，已忽略');
+                    }
+                    selectedChartData = r2.charts; rawZip = zip;
+                    renderChartList(r2.charts);
                     showPage('chartSelect');
                     return;
                 } else if(ext === 'zip'){
@@ -3652,16 +3930,30 @@
                 try{
                     var zip = rawZip;
                     if(fmt === 'mcz'){
-                        var charts = await scanMCZ(zip);
-                        if(charts.length===0){ showError('未找到有效的 4K 谱面', true); return; }
-                        selectedChartData = charts;
-                        renderChartList(charts);
+                        var r1 = await scanMCZ(zip);
+                        if(r1.charts.length===0){
+                            var sum1 = formatFailureSummary(r1.failures);
+                            window.__4kcc_showAlert('未找到有效谱面' + (sum1 ? '\n失败原因：' + sum1 : ''));
+                            return;
+                        }
+                        if(r1.failures.length > 0){
+                            window.__4kcc_toast(r1.failures.length + ' 个文件解析失败，已忽略');
+                        }
+                        selectedChartData = r1.charts;
+                        renderChartList(r1.charts);
                         showPage('chartSelect');
                     } else if(fmt === 'osz'){
-                        var charts2 = await scanOSZ(zip);
-                        if(charts2.length===0){ showError('未找到有效的 4K 谱面', true); return; }
-                        selectedChartData = charts2;
-                        renderChartList(charts2);
+                        var r2 = await scanOSZ(zip);
+                        if(r2.charts.length===0){
+                            var sum2 = formatFailureSummary(r2.failures);
+                            window.__4kcc_showAlert('未找到有效谱面' + (sum2 ? '\n失败原因：' + sum2 : ''));
+                            return;
+                        }
+                        if(r2.failures.length > 0){
+                            window.__4kcc_toast(r2.failures.length + ' 个文件解析失败，已忽略');
+                        }
+                        selectedChartData = r2.charts;
+                        renderChartList(r2.charts);
                         showPage('chartSelect');
                     } else if(fmt === 'pez'){
                         isPezParsePending = true;
@@ -3670,13 +3962,30 @@
                         updateParamsPage();
                         showPage('params');
                     } else if(fmt === '4kz'){
-                        var data = await parse4KZ(zip);
-                        if(!data) return;
-                        parsedDataList = [data];
-                        sourceType = '4kz';
-                        updateMetaHeader();
-                        applyMetaToForm(parsedDataList);
-                        showPage('meta');
+                        var res = await parse4KZ(zip);
+                        if(!res.list || res.list.length === 0){
+                            var sum4 = formatFailureSummary(res.failures || []);
+                            window.__4kcc_showAlert('无效的 4kz 文件' + (sum4 ? '\n失败原因：' + sum4 : ''));
+                            return;
+                        }
+                        if(res.failures && res.failures.length > 0){
+                            window.__4kcc_toast(res.failures.length + ' 个谱面解析失败，已忽略');
+                        }
+                        if(res.list.length === 1){
+                            parsedDataList = [res.list[0]];
+                            applyBackgroundFromData(parsedDataList[0]);
+                            sourceType = '4kz';
+                            updateMetaHeader();
+                            applyMetaToForm(parsedDataList);
+                            showPage('meta');
+                        } else {
+                            selectedChartData = res.list.map(function(d, i){
+                                return { version: d.level || ('谱面'+(i+1)), _4kzData: d, keynum: d.keynum, is4K: d.keynum === 4 };
+                            });
+                            sourceType = '4kz';
+                            renderChartList(selectedChartData);
+                            showPage('chartSelect');
+                        }
                     } else {
                         window.__4kcc_showError('未知格式');
                     }
@@ -3693,13 +4002,17 @@
                     for (var i = 0; i < selectedIndices.length; i++) {
                         var chart = selectedChartData[selectedIndices[i]];
                         var data;
-                        if(sourceType==='mcz') data = await parseMCZFull(zip, chart);
+                        if(sourceType==='4kz') data = chart._4kzData;
+                        else if(sourceType==='mcz') data = await parseMCZFull(zip, chart);
                         else if(sourceType==='osz') data = await parseOSZFull(zip, chart);
                         else { window.__4kcc_showError('未知来源格式'); return; }
                         if (data) dataList.push(data);
                     }
                     if (dataList.length === 0) return;
                     parsedDataList = dataList;
+                    if (dataList[0] && dataList[0].imageData && dataList[0].imageName !== PLACEHOLDER_NAME) {
+                        window.setBackgroundImage(dataList[0].imageData);
+                    }
                     targetType = (sourceType==='mcz')?'pez':'mcz';
                     updateMetaHeader();
                     applyMetaToForm(parsedDataList);
@@ -3730,6 +4043,9 @@
                         var zip = rawZip || await JSZip.loadAsync(fileBuffer);
                         var data = await parsePEZ(zip, tol, useManual, useManual ? manualVal : 0, fullCapture);
                         if(!data) return;
+                        if (data.imageData && data.imageName !== PLACEHOLDER_NAME) {
+                            window.setBackgroundImage(data.imageData);
+                        }
                         parsedDataList = [data];
                         isPezParsePending = false;
                         applyMetaToForm(parsedDataList);
@@ -3808,7 +4124,6 @@
                     var hashArr = Array.from(new Uint8Array(hashBuf));
                     var hashHex = hashArr.map(function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
                     var shortHash = hashHex.slice(0, 16);
-                    /* 加入时间戳，便于管理曲绘按时间从新到旧排序 */
                     var key = 'background/4kcc_' + Date.now() + '_' + shortHash + '.png';
 
                     var db = await window.__4kcc_openIDB('YuYiTool_Launcher');
@@ -3889,7 +4204,6 @@
                 }
             }
             await onSettingToggle('idbLib', el);
-            /* 取消 IDB 支持库时，联动关闭禁止联网 */
             if (!want && !el.checked && window.__4kcc_settings.values.noNetwork) {
                 window.__4kcc_settings.values.noNetwork = false;
                 appSettings.noNetwork = false;
@@ -4014,7 +4328,6 @@
             });
         });
 
-        /* ================= 管理曲绘 ================= */
         var artworkBlobUrls = [];
 
         async function loadAllArtworkItems(){
@@ -4049,14 +4362,12 @@
                 } catch(e){}
             }
             db.close();
-            /* 从新到旧排序 */
             result.sort(function(a, b){
                 if (a.ts && b.ts) return b.ts - a.ts;
                 if (a.ts) return -1;
                 if (b.ts) return 1;
                 return 0;
             });
-            /* 默认曲绘固定最后 */
             result.push({ key: '__default__', url: window.__4kcc_EMBEDDED_BG, ts: -1, isDefault: true });
             return result;
         }
@@ -4431,7 +4742,6 @@
             });
         }
 
-        /* ============ 背景音乐初始化 ============ */
         (function initBgm(){
             if (appSettings.bgm) {
                 BGM.setup();

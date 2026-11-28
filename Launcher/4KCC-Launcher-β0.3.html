@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4KCC-Launcher</title>
+<link id="favicon" rel="icon" href="otherfile/4KCC.png">
+<style>
+body{font-family:sans-serif;margin:10px;font-size:14px}
+#status,#verr{color:#c00}
+#msg{color:#a60}
+#readme{white-space:pre-wrap;font-family:monospace;font-size:12px;border-top:1px solid #ccc;margin-top:8px;padding-top:8px}
+#iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+a{font-size:12px}
+button{margin-right:4px}
+#oldWrap{display:none;margin-top:6px;margin-bottom:6px;}
+#oldVer{width:140px;}
+</style>
+</head>
+<body>
+<h3 id="appTitle">4KCC-Launcher-β0.3</h3>
+<div style="font-size:12px;color:#a60;margin-bottom:8px;">请使用 Edge / Chrome 浏览器开启，其他浏览器可能存在 bug</div>
+<div>切换源：
+  <label><input type="radio" name="src" value="github" checked>github</label>
+  <label><input type="radio" name="src" value="ghproxy">ghproxy</label>
+  <label><input type="radio" name="src" value="relative">相对路径</label>
+</div>
+<button id="pull">拉取数据</button>
+<button id="readmebtn">查看更新日志</button>
+<button id="oldbtn">浏览以前的版本</button>
+<div id="oldWrap">
+  <input id="oldVer" type="text" placeholder="版本号" inputmode="decimal">
+  <button id="oldGo">跳转</button>
+</div>
+<div id="status"></div>
+<div id="ver"></div>
+<div id="verr"></div>
+<div id="msg"></div>
+<div id="readme"></div>
+<div><a href="https://github.com/SeaSinvo/4KCC_Tool" target="_blank">https://github.com/SeaSinvo/4KCC_Tool</a></div>
+<iframe id="iframe"></iframe>
+<dialog id="dlg">
+  <div id="dlgTitle" style="font-weight:bold"></div>
+  <div id="dlgBody" style="white-space:pre-wrap;margin-top:6px;"></div>
+  <div style="margin-top:10px;text-align:right;"><button id="dlgOk">确定</button></div>
+</dialog>
+<script>
+(function(){
+'use strict';
+var PAGES_BASE='https://seasinvo.github.io/4KCC_Tool/';
+var SOURCES={
+  github:PAGES_BASE,
+  ghproxy:'https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/',
+  relative:''
+};
+var cache={name:null,html:null,url:null};
+var autoStarted=false;
+var readmeCache={text:null};
+var dlgQueue=[];
+var dlgShowing=false;
+var baseTitle='4KCC-Launcher';
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function parseVer(s){
+  s=String(s||'').replace(/^[^0-9]*/,'');
+  if(!s)return [];
+  return s.split('.').map(function(x){return parseInt(x,10)||0;});
+}
+function cmpVer(a,b){
+  var pa=parseVer(a),pb=parseVer(b);
+  var n=Math.max(pa.length,pb.length);
+  for(var i=0;i<n;i++){
+    var x=pa[i]||0,y=pb[i]||0;
+    if(x>y)return 1;
+    if(x<y)return -1;
+  }
+  return 0;
+}
+// 组合版本串：主版本+引擎版本，形如 V2.0+0.1；引擎版本为空时只存主版本
+function combinedVer(name,engine){return engine?name+'+'+engine:name;}
+function splitCombined(v){var p=String(v||'').split('+');return {main:p[0]||'',engine:p[1]||''};}
+function cmpCombined(a,b){
+  var ca=splitCombined(a),cb=splitCombined(b);
+  var m=cmpVer(ca.main,cb.main);
+  if(m!==0)return m;
+  return cmpVer(ca.engine,cb.engine);
+}
+function getOwnVersion(){
+  var el=$('appTitle');
+  var t=el?el.textContent:(document.title||'');
+  var m=t.match(/[\u03b2\u03d5Vv]\s*(\d+(?:\.\d+)*)/);
+  if(m)return m[1];
+  m=t.match(/(\d+(?:\.\d+)+)/);
+  return m?m[1]:'';
+}
+
+function showDialog(title,body){
+  return new Promise(function(resolve){
+    dlgQueue.push({title:title,body:body,resolve:resolve});
+    if(!dlgShowing)nextDialog();
+  });
+}
+function nextDialog(){
+  var d=dlgQueue.shift();
+  if(!d){dlgShowing=false;return;}
+  dlgShowing=true;
+  var dlg=$('dlg');
+  $('dlgTitle').textContent=d.title;
+  $('dlgBody').textContent=d.body;
+  var ok=$('dlgOk');
+  var clone=ok.cloneNode(true);
+  ok.parentNode.replaceChild(clone,ok);
+  clone.onclick=function(){
+    dlg.close();
+    dlgShowing=false;
+    d.resolve();
+    nextDialog();
+  };
+  if(!dlg.open)dlg.showModal();
+}
+function waitDialogs(fn){
+  if(!dlgShowing&&dlgQueue.length===0){fn();return;}
+  setTimeout(function(){waitDialogs(fn);},80);
+}
+
+function fetchText(url,noCache){
+  return new Promise(function(res,rej){
+    var c=new AbortController();
+    var t=setTimeout(function(){c.abort();},15000);
+    fetch(url,{signal:c.signal,cache:noCache?'no-store':'default'}).then(function(r){
+      clearTimeout(t);
+      if(!r.ok)throw new Error('HTTP '+r.status+' '+r.statusText);
+      return r.text();
+    }).then(res).catch(function(e){
+      clearTimeout(t);
+      rej(e.name==='AbortError'?new Error('请求超时(15s)'):e);
+    });
+  });
+}
+// 按当前所选源拼接地址：relative 前缀为空，走相对路径；其余源拼指定前缀
+function buildUrl(rel){
+  var b=getSrc();
+  return b? b+rel : rel;
+}
+function fetchResource(rel,noCache){
+  return fetchText(buildUrl(rel),noCache);
+}
+function fetchReadmeText(){
+  if(readmeCache.text){
+    return Promise.resolve(readmeCache.text);
+  }
+  return fetchResource('README.md',true).then(function(txt){
+    readmeCache.text=txt;
+    return txt;
+  });
+}
+
+function findSection(lines,heading){
+  var start=-1;
+  for(var i=0;i<lines.length;i++){
+    if(lines[i].trim()===heading){start=i;break;}
+  }
+  if(start<0)return null;
+  var end=lines.length;
+  for(var j=start+1;j<lines.length;j++){
+    if(/^\s*###\s/.test(lines[j])){end=j;break;}
+  }
+  return {start:start,end:end};
+}
+function findVerLine(lines,from,to,ver){
+  if(!ver)return -1;
+  var needle=ver+' ';
+  for(var i=from;i<to;i++){
+    if(lines[i].indexOf(needle)>=0)return i;
+  }
+  return -1;
+}
+function extractUpdateBody(md,heading,curVer,newVer){
+  var lines=String(md).split(/\r?\n/);
+  var sec=findSection(lines,heading);
+  if(!sec)return '';
+  var newIdx=findVerLine(lines,sec.start+1,sec.end,newVer);
+  if(newIdx<0)return '';
+  var curIdx=curVer?findVerLine(lines,sec.start+1,sec.end,curVer):-1;
+  var from=curIdx>=0?(curIdx+1):(sec.start+1);
+  var picked=[];
+  for(var i=from;i<=newIdx;i++){
+    if(lines[i].trim())picked.push(lines[i].trim());
+  }
+  if(picked.length>5){
+    picked=picked.slice(picked.length-5);
+    picked.push('更多更新日志请手动查阅');
+  }
+  return picked.join('\n');
+}
+
+function getSrc(){
+  var r=document.querySelector('input[name=src]:checked');
+  return SOURCES[r?r.value:'github'];
+}
+function getSrcVal(){
+  var r=document.querySelector('input[name=src]:checked');
+  return r?r.value:'github';
+}
+
+function extractTitle(html){
+  var tm=String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return tm?tm[1].trim():'';
+}
+function applyToolMeta(html){
+  var title=extractTitle(html);
+  if(title)document.title=title;
+}
+
+function checkLauncherUpdate(){
+  var cur=getOwnVersion();
+  if(!cur)return Promise.resolve();
+  var last=localStorage.getItem('4kcc_launcher_version')||'';
+  if(cmpVer(cur,last)<=0)return Promise.resolve();
+  return fetchReadmeText().then(function(md){
+    var body=extractUpdateBody(md,'### Launcher',last,cur);
+    return showDialog('启动器已更新至'+cur+'版本',body).then(function(){
+      localStorage.setItem('4kcc_launcher_version',cur);
+    });
+  }).catch(function(){});
+}
+
+function checkKernelUpdate(){
+  if(!cache.name)return Promise.resolve();
+  var cur=combinedVer(cache.name,cache.engine);
+  var last=localStorage.getItem('4kcc_last_version')||'';
+  if(cmpCombined(cur,last)<=0)return Promise.resolve();
+  return fetchReadmeText().then(function(md){
+    var body=extractUpdateBody(md,'### 4KCC',last,cur);
+    return showDialog('4KCC已更新至'+cur+'版本',body).then(function(){
+      localStorage.setItem('4kcc_last_version',cur);
+    });
+  });
+}
+
+function tryAutoStart(){
+  if(autoStarted)return;
+  var auto=localStorage.getItem('4kcc_autostart')||'web';
+  if(auto==='none')return;
+  waitDialogs(function(){
+    if(autoStarted)return;
+    if(!cache.html)return;
+    autoStarted=true;
+    var r=document.querySelector('input[name=ver][value="WEB"]');
+    if(r)r.checked=true;
+    launch();
+  });
+}
+
+function render(){
+  var wrap=$('ver');
+  var title=cache.name;
+  if(!title){wrap.innerHTML='';return;}
+  var h='最新版本：'+esc(title)+'<br>';
+  h+='<label><input type="radio" name="ver" value="WEB" checked> [WEB] '+esc(cache.name)+'</label><br>';
+  h+='<button id="launch">启动该版本</button>';
+  h+='<button id="todisk">下载到本地磁盘</button>';
+  h+='<button id="dlLauncher">下载启动器</button>';
+  var auto=localStorage.getItem('4kcc_autostart')||'web';
+  h+='<div style="margin-top:8px;border-top:1px solid #ccc;padding-top:8px;">';
+  h+='<div style="font-size:12px;color:#666;">启动时自动：</div>';
+  h+='<label><input type="radio" name="autostart" value="none"'+(auto==='none'?' checked':'')+'> 不自动启动</label><br>';
+  h+='<label><input type="radio" name="autostart" value="web"'+(auto!=='none'?' checked':'')+'> 自动启动 WEB 版文件</label>';
+  h+='</div>';
+  wrap.innerHTML=h;
+  $('launch').onclick=launch;
+  $('todisk').onclick=downloadLocal;
+  $('dlLauncher').onclick=downloadLauncher;
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=autostart]'),function(el){
+    el.addEventListener('change',function(){
+      localStorage.setItem('4kcc_autostart',el.value);
+    });
+  });
+}
+
+function pull(){
+  var st=$('status');
+  st.textContent='加载中...';
+  st.style.color='';
+  $('verr').textContent='';
+  fetchResource('versions/versions.txt?t='+Date.now(),true).then(function(txt){
+    var name=txt.trim().split(/\s+/)[0];
+    if(!name)throw new Error('版本文件为空');
+    var rel='versions/4KCC-'+name+'.html';
+    return Promise.all([
+      fetchResource(rel).then(function(html){return html;}),
+      fetchResource('versions/js/versions.txt?t='+Date.now(),true)
+        .then(function(t){return t.trim().split(/\s+/)[0];})
+        .catch(function(){return '';})
+    ]).then(function(arr){
+      return {name:name,html:arr[0],url:rel,engine:arr[1]||''};
+    });
+  }).then(function(data){
+    cache=data;
+    st.textContent='';
+    render();
+    return checkKernelUpdate();
+  }).then(function(){
+    tryAutoStart();
+  }).catch(function(e){
+    st.textContent='错误：'+(e.message||e);
+    st.style.color='#c00';
+  });
+}
+
+function loadReadme(){
+  var el=$('readme');
+  el.textContent='README 加载中...';
+  fetchResource('README.md').then(function(txt){
+    el.textContent=txt;
+  }).catch(function(e){
+    el.textContent='README 读取失败：'+(e.message||e);
+  });
+}
+
+function srcQuery(){
+  return '?4kcc_src='+encodeURIComponent(getSrcVal());
+}
+function loadWeb(){
+  var f=$('iframe');
+  f.dataset.mode='web';
+  applyToolMeta(cache.html);
+  f.removeAttribute('srcdoc');
+  f.src=buildUrl(cache.url)+srcQuery();
+}
+
+function launch(){
+  var r=document.querySelector('input[name=ver]:checked');
+  if(!r)return;
+  $('verr').textContent='';
+  var f=$('iframe');
+  if(!cache.html||!cache.url)return;
+  f.style.display='block';
+  loadWeb();
+}
+
+function exitRender(){
+  var f=$('iframe');
+  f.style.display='none';
+  f.removeAttribute('srcdoc');
+  f.removeAttribute('src');
+  f.dataset.mode='';
+  $('verr').textContent='';
+  document.title=baseTitle;
+}
+
+window.addEventListener('message',function(e){
+  if(!e.data)return;
+  var kind=e.data.t||e.data.type;
+  if(kind==='4kcc_reload'||kind==='4kcc-reload'){
+    if(cache.html)loadWeb();
+  }else if(kind==='4kcc_exit'){
+    exitRender();
+  }
+});
+
+function downloadLocal(){
+  var verr=$('verr'),msg=$('msg');
+  verr.textContent='';
+  msg.textContent='';
+  if(!cache.html||!cache.name){
+    verr.textContent='错误：请先拉取数据';
+    return;
+  }
+  var safe=String(cache.name).replace(/[^\w.\-]+/g,'_');
+  if(!/^4KCC-/i.test(safe))safe='4KCC-'+safe;
+  var fname=safe+'.html';
+  var blob=new Blob([cache.html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download=fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  msg.textContent='已导出 '+fname;
+}
+
+function downloadLauncher(){
+  var verr=$('verr'),msg=$('msg');
+  verr.textContent='';
+  msg.textContent='下载启动器中...';
+  fetchResource('index.html').then(function(html){
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='index.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    msg.textContent='已下载 index.html';
+  }).catch(function(e){
+    msg.textContent='';
+    verr.textContent='下载启动器失败：'+(e.message||e);
+  });
+}
+
+function toggleOldWrap(){
+  var w=$('oldWrap');
+  w.style.display=(w.style.display==='block')?'none':'block';
+  if(w.style.display==='block')$('oldVer').focus();
+}
+function jumpOld(){
+  var verr=$('verr');
+  verr.textContent='';
+  var v=$('oldVer').value.trim();
+  if(!/^\d+(\.\d+)*$/.test(v)){
+    return;
+  }
+  var first=parseInt(v.split('.')[0],10);
+  var prefix=(first>=1)?'V':'\u03b2';
+  // 2.0 以前（首段 0、1）在归档目录 past4kcc/versions/；2.0 及以后在主 versions/
+  var dir=(first>=2)?'versions':'past4kcc/versions';
+  var rel=dir+'/4KCC-'+prefix+v+'.html';
+  var url=buildUrl(rel);
+  fetchText(url).then(function(){
+    window.open(url,'_blank');
+  }).catch(function(){
+    verr.textContent='未找到该版本';
+  });
+}
+
+$('pull').onclick=pull;
+$('readmebtn').onclick=loadReadme;
+$('oldbtn').onclick=toggleOldWrap;
+$('oldGo').onclick=jumpOld;
+$('dlg').addEventListener('cancel',function(e){e.preventDefault();});
+
+(function init(){
+  if(navigator.storage&&navigator.storage.persist){
+    try{navigator.storage.persist().catch(function(){});}catch(e){}
+  }
+  var fav=$('favicon');
+  fav.addEventListener('error',function(){
+    if(fav.getAttribute('href').indexOf(PAGES_BASE)<0){
+      fav.href=PAGES_BASE+'otherfile/4KCC.png';
+    }
+  });
+  var saved=localStorage.getItem('4kcc_src');
+  if(saved){
+    var r=document.querySelector('input[name=src][value="'+saved+'"]');
+    if(r)r.checked=true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=src]'),function(el){
+    el.addEventListener('change',function(){
+      localStorage.setItem('4kcc_src',el.value);
+      readmeCache={text:null};
+    });
+  });
+  checkLauncherUpdate().then(function(){
+    pull();
+  });
+})();
+
+})();
+</script>
+</body>
+</html>
