@@ -6,11 +6,11 @@
 
 
 
-1. [https://seasinvo.github.io/4KCC_Tool/versions/js/4KCC-engine-0.1.js](https://seasinvo.github.io/4KCC_Tool/versions/js/4KCC-engine-0.1.js)
+1. [https://seasinvo.github.io/4KCC_Tool/versions/js/4KCC-engine-latest.js](https://seasinvo.github.io/4KCC_Tool/versions/js/4KCC-engine-latest.js)
 
-2. [https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-0.1.js](https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-0.1.js)
+2. [https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-latest.js](https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-latest.js)
 
-3. [https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-0.1.js](https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-0.1.js)
+3. [https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-latest.js](https://ghproxy.net/https://raw.githubusercontent.com/SeaSinvo/4KCC_Tool/main/versions/js/4KCC-engine-latest.js)
 
 > **注意：一定要加载 JSZip 这个库！**
 > 参考链接（并非最新）：
